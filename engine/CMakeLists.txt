@@ -37,6 +37,7 @@ set(ENGINE_ECS_SOURCES
 set(ENGINE_RENDER_SOURCES
     render/gl_loader.cpp
     render/render_backend.cpp
+    render/shader.cpp
     render/sprite.cpp
     render/texture.cpp
 )

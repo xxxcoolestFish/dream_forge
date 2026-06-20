@@ -41,28 +41,34 @@ int main(int argc, char* argv[])
     // 创建玩家 Entity
     auto player = world->createEntity();
     world->addComponent<engine::ecs::Transform>(player);
+    world->addComponent<engine::ecs::Sprite>(player);
     world->addComponent<engine::ecs::Stats>(player);
 
     auto& playerTransform = world->getComponent<engine::ecs::Transform>(player);
     playerTransform.position = glm::vec3(100.0f, 100.0f, 0.0f);
 
+    auto& playerSprite = world->getComponent<engine::ecs::Sprite>(player);
+    playerSprite.tint = glm::vec4(0.2f, 0.6f, 1.0f, 1.0f); // 蓝色
+
     auto& playerStats = world->getComponent<engine::ecs::Stats>(player);
     playerStats.set("hp", 100.0f);
     playerStats.set("xp", 0.0f);
 
-    spdlog::info("Player entity created (id={}): pos=({:.0f}, {:.0f}), HP={:.0f}",
+    spdlog::info("Player entity created (id={}): pos=({:.0f}, {:.0f}), color=blue",
         static_cast<uint32_t>(player),
         playerTransform.position.x,
-        playerTransform.position.y,
-        playerStats.get("hp"));
+        playerTransform.position.y);
 
-    // 创建 NPC Entity（仅 Transform）
+    // 创建 NPC Entity
     auto npc = world->createEntity();
     world->addComponent<engine::ecs::Transform>(npc);
+    world->addComponent<engine::ecs::Sprite>(npc);
     auto& npcTransform = world->getComponent<engine::ecs::Transform>(npc);
     npcTransform.position = glm::vec3(400.0f, 200.0f, 0.0f);
+    auto& npcSprite = world->getComponent<engine::ecs::Sprite>(npc);
+    npcSprite.tint = glm::vec4(1.0f, 0.4f, 0.3f, 1.0f); // 红色
 
-    spdlog::info("NPC entity created (id={}): pos=({:.0f}, {:.0f})",
+    spdlog::info("NPC entity created (id={}): pos=({:.0f}, {:.0f}), color=red",
         static_cast<uint32_t>(npc),
         npcTransform.position.x,
         npcTransform.position.y);

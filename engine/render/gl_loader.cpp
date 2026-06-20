@@ -55,7 +55,10 @@ PFNGLTEXPARAMETERIPROC         TexParameteri       = nullptr;
 PFNGLDELETETEXTURESPROC        DeleteTextures      = nullptr;
 
 // Uniform
+PFNGLGETUNIFORMLOCATIONPROC    GetUniformLocation  = nullptr;
+PFNGLUNIFORM2FPROC             Uniform2f           = nullptr;
 PFNGLUNIFORMMATRIX4FVPROC      UniformMatrix4fv    = nullptr;
+PFNGLUNIFORM4FPROC             Uniform4f           = nullptr;
 
 // Draw
 PFNGLDRAWARRAYSPROC            DrawArrays          = nullptr;
@@ -120,7 +123,10 @@ bool load(GLFWwindow* window)
     GL_LOAD_PROC(DeleteTextures);
 
     // Uniform
+    GL_LOAD_PROC(GetUniformLocation);
+    GL_LOAD_PROC(Uniform2f);
     GL_LOAD_PROC(UniformMatrix4fv);
+    GL_LOAD_PROC(Uniform4f);
 
     // Draw
     GL_LOAD_PROC(DrawArrays);

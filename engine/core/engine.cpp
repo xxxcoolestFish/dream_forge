@@ -6,6 +6,7 @@
 #include "engine/core/engine.h"
 #include "engine/core/game_loop.h"
 #include "engine/render/render_backend.h"
+#include "engine/render/sprite.h"
 #include "engine/ecs/world.h"
 #include "engine/ecs/systems/movement_system.h"
 #include "engine/input/input_system.h"
@@ -27,9 +28,10 @@ struct Engine::Impl
     bool          shouldQuit    = false;
 
     std::unique_ptr<render::RenderBackend> renderBackend;
-    std::unique_ptr<ecs::World>            ecsWorld;
-    std::unique_ptr<input::InputSystem>    inputSystem;
-    std::unique_ptr<GameLoop>              gameLoop;
+    std::unique_ptr<render::SpriteRenderer> spriteRenderer;
+    std::unique_ptr<ecs::World>             ecsWorld;
+    std::unique_ptr<input::InputSystem>     inputSystem;
+    std::unique_ptr<GameLoop>               gameLoop;
 };
 
 // =========================================================================
@@ -159,6 +161,14 @@ bool Engine::initECS()
     );
 
     spdlog::info("  ECS World initialized with {} system(s).", 1);
+    // 初始化精灵渲染器
+    m_impl->spriteRenderer = std::make_unique<render::SpriteRenderer>();
+    if (!m_impl->spriteRenderer->init())
+    {
+        spdlog::critical("Failed to initialize sprite renderer");
+        return false;
+    }
+
     return true;
 }
 
@@ -236,7 +246,13 @@ void Engine::run()
 
         // --- 渲染 ---
         render.beginFrame();
-        // TODO Step 5-6: 精灵渲染（根据 ECS 中的 Sprite + Transform 绘制）
+        if (m_impl->spriteRenderer)
+        {
+            m_impl->spriteRenderer->render(
+                world,
+                m_impl->config.windowWidth,
+                m_impl->config.windowHeight);
+        }
         render.endFrame();
         glfwSwapBuffers(m_impl->window);
 
@@ -266,6 +282,8 @@ void Engine::shutdown()
 
     // 逆序销毁子系统
 m_impl->ecsWorld.reset();
+    m_impl->spriteRenderer->shutdown();
+    m_impl->spriteRenderer.reset();
     m_impl->inputSystem->shutdown();
     m_impl->inputSystem.reset();
     m_impl->renderBackend->shutdown();

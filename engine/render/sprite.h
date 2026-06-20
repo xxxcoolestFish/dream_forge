@@ -1,17 +1,9 @@
 /**
  * @file engine/render/sprite.h
- * @brief 精灵绘制
+ * @brief 2D 精灵渲染器 — 将 ECS 中 Sprite+Transform 渲染到屏幕
  *
- * 负责：
- *   - 单个精灵的绘制（一个带纹理的四边形）
- *   - 批处理精灵的提交
- *
- * 当前 Phase 1 阶段：简单单精灵绘制
- * 后续阶段：精灵批处理（instance rendering）、排序
- *
- * 注意事项：
- *   - 使用 bgfx 的 transient vertex buffer 提交
- *   - 所有精灵使用同一个 shader 程序
+ * Phase 1：简单彩色矩形渲染（无纹理），每个 Entity 一个 draw call。
+ * 后续 Phase：批处理、纹理支持、深度排序。
  */
 
 #pragma once
@@ -19,18 +11,13 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
-namespace engine::render {
+namespace engine::ecs {
+    class World;
+    struct Transform;
+    struct Sprite;
+}
 
-struct SpriteDesc
-{
-    uint16_t  textureHandle = UINT16_MAX;
-    glm::vec2 position      { 0.0f, 0.0f };    // 屏幕坐标
-    glm::vec2 size          { 100.0f, 100.0f }; // 像素
-    glm::vec2 anchor        { 0.5f, 0.5f };    // 锚点
-    glm::vec4 tint          { 1.0f, 1.0f, 1.0f, 1.0f };
-    float     rotation      = 0.0f;             // 弧度
-    float     depth         = 0.0f;             // 0.0(最远) ~ 1.0(最近)
-};
+namespace engine::render {
 
 class SpriteRenderer
 {
@@ -38,21 +25,24 @@ public:
     SpriteRenderer();
     ~SpriteRenderer();
 
-    // 初始化（加载 shader 等）
+    // 初始化（编译着色器、创建 VAO/VBO）
     bool init();
 
     // 关闭
     void shutdown();
 
-    // 提交一个精灵到渲染队列
-    void submit(const SpriteDesc& desc);
-
-    // 执行所有提交的绘制
-    void flush();
+    // 每帧渲染所有可见精灵
+    void render(const engine::ecs::World& world,
+                uint32_t screenWidth, uint32_t screenHeight);
 
 private:
-    struct Impl;
-    Impl* m_impl = nullptr;
+    uint32_t m_vao        = 0;  // 顶点数组
+    uint32_t m_vbo        = 0;  // 顶点缓冲
+    uint32_t m_shaderProg = 0;  // 着色器程序
+    uint32_t m_uScreenSize = 0; // screen size uniform location
+    uint32_t m_uOffset     = 0; // position offset uniform
+    uint32_t m_uColor      = 0; // color uniform
+    bool     m_initialized = false;
 };
 
 } // namespace engine::render

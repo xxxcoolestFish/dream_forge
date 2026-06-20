@@ -179,7 +179,10 @@ using PFNGLTEXPARAMETERIPROC        = void    (APIENTRY *)(GLenum, GLenum, GLint
 using PFNGLDELETETEXTURESPROC       = void    (APIENTRY *)(GLsizei, const GLuint*);
 
 // --- Uniform ---
+using PFNGLGETUNIFORMLOCATIONPROC   = GLint   (APIENTRY *)(GLuint, const GLchar*);
+using PFNGLUNIFORM2FPROC            = void    (APIENTRY *)(GLint, GLfloat, GLfloat);
 using PFNGLUNIFORMMATRIX4FVPROC     = void    (APIENTRY *)(GLint, GLsizei, GLboolean, const GLfloat*);
+using PFNGLUNIFORM4FPROC            = void    (APIENTRY *)(GLint, GLfloat, GLfloat, GLfloat, GLfloat);
 
 // --- Draw ---
 using PFNGLDRAWARRAYSPROC           = void    (APIENTRY *)(GLenum, GLint, GLsizei);
@@ -220,7 +223,10 @@ extern PFNGLTEXIMAGE2DPROC            TexImage2D;
 extern PFNGLTEXPARAMETERIPROC         TexParameteri;
 extern PFNGLDELETETEXTURESPROC        DeleteTextures;
 
+extern PFNGLGETUNIFORMLOCATIONPROC    GetUniformLocation;
+extern PFNGLUNIFORM2FPROC             Uniform2f;
 extern PFNGLUNIFORMMATRIX4FVPROC      UniformMatrix4fv;
+extern PFNGLUNIFORM4FPROC             Uniform4f;
 
 extern PFNGLDRAWARRAYSPROC            DrawArrays;
 
