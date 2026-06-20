@@ -63,11 +63,12 @@ PFNGLDRAWARRAYSPROC            DrawArrays          = nullptr;
 // =========================================================================
 // 宏：加载函数指针
 // =========================================================================
+// glfwGetProcAddress 需要完整的 OpenGL 函数名（含 "gl" 前缀）
 #define GL_LOAD_PROC(func) \
     do { \
-        func = reinterpret_cast<decltype(func)>(glfwGetProcAddress(#func)); \
+        func = reinterpret_cast<decltype(func)>(glfwGetProcAddress("gl" #func)); \
         if (!func) { \
-            spdlog::warn("gl::load: failed to load {}", #func); \
+            spdlog::warn("gl::load: failed to load gl{}", #func); \
         } \
     } while(0)
 

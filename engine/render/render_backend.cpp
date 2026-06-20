@@ -46,11 +46,12 @@ bool RenderBackend::init(GLFWwindow* window, const RenderConfig& config)
     // --- 1. 设置 OpenGL 上下文 ---
     glfwMakeContextCurrent(window);
 
-    // --- 2. 加载 OpenGL 3.3 函数指针 ---
-    if (!gl::load(window))
+    // --- 2. 加载 OpenGL 3.3 函数指针（尽力而为，无GPU时降至1.1） ---
+    bool gl33available = gl::load(window);
+    if (!gl33available)
     {
-        spdlog::critical("Failed to load OpenGL functions");
-        return false;
+        spdlog::warn("  OpenGL 3.3 functions not available, falling back to OpenGL 1.1 mode.");
+        spdlog::warn("  (This is normal in remote desktop / headless environments)");
     }
 
     spdlog::info("  OpenGL Version: {}", (const char*)gl::GetString(GL_VERSION));
