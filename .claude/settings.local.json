@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"C:\\\\Users\\\\32510\\\\.claude\\\\projects\\\\\")",
+      "Read(//c/Users/32510/.claude/**)",
+      "Bash(ls -la /c/Users/32510/Desktop/游戏框架开发/ 2>/dev/null || echo \"Directory not found\")",
+      "Read(//c/Users/32510/Desktop/**)"
+    ]
+  }
+}

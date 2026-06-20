@@ -1,0 +1,38 @@
+# Build outputs
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Dependencies (fetched by CMake)
+third_party/
+_build/
+
+# Generated assets
+*.scene.tmp
+*.png.tmp
