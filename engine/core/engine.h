@@ -3,7 +3,7 @@
  * @brief 引擎初始化入口
  *
  * 负责：
- *   - 各子系统（渲染、ECS、输入、资源）的创建与初始化
+ *   - 各子系统（窗口、渲染、ECS、输入、资源）的创建与初始化
  *   - 引擎生命周期管理（init / run / shutdown）
  *   - 子系统间的协调
  *
@@ -21,6 +21,9 @@
 #pragma once
 
 #include <string>
+#include <memory>
+
+struct GLFWwindow;
 
 namespace engine {
 
@@ -30,6 +33,7 @@ struct EngineConfig
     int         windowWidth  = 1280;
     int         windowHeight = 720;
     bool        fullscreen   = false;
+    bool        vsync        = true;
 };
 
 class Engine
@@ -47,12 +51,23 @@ public:
     void run();
     void shutdown();
 
+    // 获取窗口句柄（供子系统和外部使用）
+    GLFWwindow* window() const;
+
     // 请求退出
     void requestQuit();
+    bool shouldQuit() const;
 
 private:
+    // 初始化顺序严格
+    bool initWindow();
+    bool initRenderBackend();
+    bool initECS();
+    bool initInput();
+    bool initResource();
+
     struct Impl;
-    Impl* m_impl = nullptr;
+    std::unique_ptr<Impl> m_impl;
 };
 
 } // namespace engine

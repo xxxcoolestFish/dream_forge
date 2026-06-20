@@ -18,8 +18,7 @@ World::World()
 
 World::~World()
 {
-    spdlog::debug("ECS World destroyed ({} entities, {} systems)",
-        m_registry->alive(), m_systems.size());
+    spdlog::debug("ECS World destroyed ({} systems)", m_systems.size());
 }
 
 Entity World::createEntity()

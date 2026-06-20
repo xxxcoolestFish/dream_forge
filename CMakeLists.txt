@@ -62,8 +62,10 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 # --- GLFW 3.4（窗口创建 + 输入） ---
 FetchContent_Declare(glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_REPOSITORY https://gitcode.com/glfw/glfw.git
     GIT_TAG 3.4
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
 )
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -71,44 +73,55 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
 # --- EnTT（ECS框架，header-only） ---
+# gitclone浅克隆不包含tag，使用commit hash对应v3.14.0
 FetchContent_Declare(entt
-    GIT_REPOSITORY https://github.com/skypjack/entt.git
-    GIT_TAG v3.14.0
+    GIT_REPOSITORY https://gitclone.com/github.com/skypjack/entt.git
+    GIT_TAG 1333fa53129e7cfded5a9640c4336a254049917b
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
 )
 FetchContent_MakeAvailable(entt)
 
 # --- GLM（数学库，header-only） ---
+# gitclone浅克隆不包含tag，使用commit hash对应1.0.1
 FetchContent_Declare(glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG 1.0.1
+    GIT_REPOSITORY https://gitclone.com/github.com/g-truc/glm.git
+    GIT_TAG 6f14f4792a0cde5d0cf2c910506724d61cb95834
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
 )
 FetchContent_MakeAvailable(glm)
 
 # --- spdlog（异步日志，header-only） ---
 FetchContent_Declare(spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_REPOSITORY https://gitcode.com/gabime/spdlog.git
     GIT_TAG v1.14.1
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
 )
 FetchContent_MakeAvailable(spdlog)
 
 # --- nlohmann/json（序列化，header-only） ---
 FetchContent_Declare(nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_REPOSITORY https://gitcode.com/nlohmann/json.git
     GIT_TAG v3.11.3
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# --- bgfx（跨平台渲染库） ---
-# 使用 bgfx.cmake 包装项目（bgfx 作者官方维护）
-FetchContent_Declare(bgfx
-    GIT_REPOSITORY https://github.com/bkaradzic/bgfx.cmake.git
-    GIT_TAG 35e5a6bb8453b4d3e3a741bd35940c5ce5000f4a
+# --- OpenGL（Windows 系统自带 opengl32.lib） ---
+# Phase 1 使用原生 OpenGL 3.3；后续 Phase 切换 bgfx 时替换此段
+find_package(OpenGL REQUIRED)
+
+# --- stb_image（单头文件图像加载库，public domain） ---
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://gitcode.com/nothings/stb.git
+    GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
 )
-set(BGFX_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-set(BGFX_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(BGFX_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(BGFX_INSTALL OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(bgfx)
+FetchContent_MakeAvailable(stb)
 
 # -----------------------------------------------------------------------------
 # 子目录

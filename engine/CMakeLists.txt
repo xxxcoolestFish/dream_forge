@@ -34,6 +34,7 @@ set(ENGINE_ECS_SOURCES
 
 # --- Phase 1: render ---
 set(ENGINE_RENDER_SOURCES
+    render/gl_loader.cpp
     render/render_backend.cpp
     render/sprite.cpp
     render/texture.cpp
@@ -70,16 +71,21 @@ set_target_properties(engine PROPERTIES
 # -----------------------------------------------------------------------------
 target_link_libraries(engine PUBLIC
     glfw
-    entt::entt
+    EnTT::EnTT
     glm::glm
     spdlog::spdlog
     nlohmann_json::nlohmann_json
-    bgfx bimg bx
+    OpenGL::GL
 )
 
 # 引擎需要 GLFW 头文件公开暴露（输入系统中引用 GLFW 类型）
+# 同时明确指定所有 FetchContent 依赖的 include 路径
 target_include_directories(engine PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${entt_SOURCE_DIR}/src
+    ${glm_SOURCE_DIR}
+    ${spdlog_SOURCE_DIR}/include
+    ${nlohmann_json_SOURCE_DIR}/include
 )
 
 # -----------------------------------------------------------------------------

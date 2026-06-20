@@ -1,26 +1,49 @@
 /**
  * @file sample/main.cpp
- * @brief 示例游戏入口 — Phase 1 最小可运行骨架
+ * @brief 示例游戏入口 — Phase 1 Step 2：窗口 + OpenGL 清屏测试
  *
- * 当前阶段仅验证：
- *   1. 编译链完整（CMake + 所有依赖）
- *   2. 引擎库链接成功
- *   3. 程序可以正常启动和退出
- *
- * 后续 Step 中将逐步添加窗口、渲染、ECS 等功能。
+ * 验证：
+ *   1. GLFW 窗口创建成功
+ *   2. OpenGL 3.3 上下文初始化成功
+ *   3. 渲染循环正常运行（清屏 + swap）
+ *   4. ESC 或关闭按钮正常退出
  */
 
+#include "engine/core/engine.h"
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 
 int main(int argc, char* argv[])
 {
-    spdlog::info("AI Game Frame — Sample Game Starting...");
+    spdlog::set_level(spdlog::level::debug);
+    spdlog::info("=== AI Game Frame — Phase 1 Step 2: Window Test ===");
 
-    // TODO Step 2: 创建窗口 + 初始化渲染后端
-    // TODO Step 3: 初始化 ECS World
-    // TODO Step 4: 初始化输入系统
-    // TODO Step 5: 进入游戏主循环
+    // 配置引擎
+    engine::EngineConfig config;
+    config.windowTitle  = "AI Game Frame — Phase 1";
+    config.windowWidth  = 1280;
+    config.windowHeight = 720;
+    config.fullscreen   = false;
+    config.vsync        = true;
 
-    spdlog::info("Sample Game Exiting.");
+    // 创建引擎
+    engine::Engine engine;
+
+    if (!engine.init(config))
+    {
+        spdlog::critical("Engine initialization failed. Exiting.");
+        return 1;
+    }
+
+    spdlog::info("Engine initialized. Press ESC or close window to exit.");
+
+    // 进入主循环
+    engine.run();
+
+    // 正常退出
+    engine.shutdown();
+    spdlog::info("=== Sample Game Exited Successfully ===");
     return 0;
 }

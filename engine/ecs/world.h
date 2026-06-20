@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include "engine/ecs/entity.h"
+#include "engine/ecs/component_types.h"
+
 #include <entt/entt.hpp>
 #include <memory>
 #include <vector>
