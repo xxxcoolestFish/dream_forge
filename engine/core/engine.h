@@ -25,6 +25,8 @@
 
 struct GLFWwindow;
 
+namespace engine::ecs { class World; }
+
 namespace engine {
 
 struct EngineConfig
@@ -53,6 +55,9 @@ public:
 
     // 获取窗口句柄（供子系统和外部使用）
     GLFWwindow* window() const;
+
+    // 获取 ECS World（供脚本层和测试使用）
+    class ecs::World* ecsWorld() const;
 
     // 请求退出
     void requestQuit();

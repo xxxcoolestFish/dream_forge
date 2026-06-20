@@ -30,6 +30,7 @@ set(ENGINE_CORE_SOURCES
 set(ENGINE_ECS_SOURCES
     ecs/world.cpp
     ecs/system.cpp
+    ecs/systems/movement_system.cpp
 )
 
 # --- Phase 1: render ---
