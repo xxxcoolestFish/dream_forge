@@ -8,6 +8,7 @@
 #include "engine/render/render_backend.h"
 #include "engine/ecs/world.h"
 #include "engine/ecs/systems/movement_system.h"
+#include "engine/input/input_system.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -27,6 +28,7 @@ struct Engine::Impl
 
     std::unique_ptr<render::RenderBackend> renderBackend;
     std::unique_ptr<ecs::World>            ecsWorld;
+    std::unique_ptr<input::InputSystem>    inputSystem;
     std::unique_ptr<GameLoop>              gameLoop;
 };
 
@@ -60,11 +62,12 @@ bool Engine::init(const EngineConfig& config)
     spdlog::info("Window: {}x{}, title: '{}'",
         config.windowWidth, config.windowHeight, config.windowTitle);
 
-    // 初始化顺序不可改变：Window → Render → ECS → Input → Resource
+    // 初始化顺序：Window → Render → Input → ECS → Resource
+    // Input 在 ECS 之前，因为 System 可能依赖输入
     if (!initWindow())          return false;
     if (!initRenderBackend())   return false;
+    if (!initInput())           return false;
     if (!initECS())             return false;
-    // if (!initInput())           return false;   // Step 4
     // if (!initResource())        return false;   // Step 4
 
     m_impl->initialized = true;
@@ -145,14 +148,14 @@ bool Engine::initRenderBackend()
 
 bool Engine::initECS()
 {
-    spdlog::info("[3/5] Initializing ECS World...");
+    spdlog::info("[4/5] Initializing ECS World...");
 
     // 创建 ECS World
     m_impl->ecsWorld = std::make_unique<ecs::World>();
 
     // 注册 System（按依赖顺序）
     m_impl->ecsWorld->registerSystem(
-        std::make_unique<ecs::MovementSystem>()
+        std::make_unique<ecs::MovementSystem>(*m_impl->inputSystem)
     );
 
     spdlog::info("  ECS World initialized with {} system(s).", 1);
@@ -161,7 +164,16 @@ bool Engine::initECS()
 
 bool Engine::initInput()
 {
-    spdlog::info("[4/5] Initializing Input System... (TODO Step 4)");
+    spdlog::info("[3/5] Initializing Input System...");
+
+    m_impl->inputSystem = std::make_unique<input::InputSystem>();
+
+    if (!m_impl->inputSystem->init(m_impl->window))
+    {
+        spdlog::critical("Failed to initialize input system");
+        return false;
+    }
+
     return true;
 }
 
@@ -206,6 +218,19 @@ void Engine::run()
         // 轮询 GLFW 事件
         glfwPollEvents();
 
+        // --- 输入轮询（必须在逻辑更新之前） ---
+        if (m_impl->inputSystem)
+        {
+            m_impl->inputSystem->poll();
+
+            // ESC 退出
+            if (m_impl->inputSystem->isKeyPressed(GLFW_KEY_ESCAPE))
+            {
+                m_impl->shouldQuit = true;
+                break;
+            }
+        }
+
         // --- 逻辑更新 ---
         world.updateSystems(dt);
 
@@ -240,7 +265,9 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
-    m_impl->ecsWorld.reset();
+m_impl->ecsWorld.reset();
+    m_impl->inputSystem->shutdown();
+    m_impl->inputSystem.reset();
     m_impl->renderBackend->shutdown();
     m_impl->renderBackend.reset();
 
@@ -266,6 +293,11 @@ GLFWwindow* Engine::window() const
 ecs::World* Engine::ecsWorld() const
 {
     return m_impl->ecsWorld.get();
+}
+
+input::InputSystem* Engine::inputSystem() const
+{
+    return m_impl->inputSystem.get();
 }
 
 void Engine::requestQuit()

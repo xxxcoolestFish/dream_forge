@@ -26,6 +26,7 @@
 struct GLFWwindow;
 
 namespace engine::ecs { class World; }
+namespace engine::input { class InputSystem; }
 
 namespace engine {
 
@@ -58,6 +59,9 @@ public:
 
     // 获取 ECS World（供脚本层和测试使用）
     class ecs::World* ecsWorld() const;
+
+    // 获取输入系统
+    class input::InputSystem* inputSystem() const;
 
     // 请求退出
     void requestQuit();

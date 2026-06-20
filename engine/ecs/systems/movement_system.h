@@ -1,24 +1,28 @@
 /**
  * @file engine/ecs/systems/movement_system.h
- * @brief 移动系统 — 第一个可运行的 ECS System
+ * @brief 移动系统 — 键盘 WASD 驱动 Entity 移动
  *
- * 每帧遍历所有拥有 Transform 组件的 Entity，执行移动逻辑。
- * Step 3：使用固定方向和速度演示 ECS 管线。
- * Step 4：接入 InputSystem，改为键盘驱动移动。
+ * Step 3：固定方向演示 ECS 管线。
+ * Step 4：接入 InputSystem，WASD 键盘控制。
  */
 
 #pragma once
 
 #include "engine/ecs/system.h"
 
+namespace engine::input { class InputSystem; }
+
 namespace engine::ecs {
 
 class MovementSystem : public System
 {
 public:
-    MovementSystem();
+    explicit MovementSystem(input::InputSystem& input);
 
     void onUpdate(World& world, double dt) override;
+
+private:
+    input::InputSystem& m_input;
 };
 
 } // namespace engine::ecs
