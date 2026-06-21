@@ -52,7 +52,7 @@ class OllamaProvider(LLMProvider):
                  host: str = "http://localhost:11434"):
         super().__init__(model)
         self.host = host
-        self.client = ollama.Client(host=host)
+        self.client = ollama.Client(host=host, timeout=60.0)  # 60秒超时
         print(f"[Ollama] Provider ready: model={model}, host={host}")
 
     def complete(self, messages: list) -> str:
