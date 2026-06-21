@@ -46,6 +46,15 @@ set(ENGINE_RENDER_SOURCES
     render/scene/scene_renderer.cpp
 )
 
+# --- Phase 4: ui ---
+set(ENGINE_UI_SOURCES
+    ui/widget.cpp
+    ui/ui_renderer.cpp
+    ui/widgets/panel.cpp
+    ui/widgets/button.cpp
+    ui/widgets/box_layout.cpp
+)
+
 # --- Phase 3: scene ---
 set(ENGINE_SCENE_SOURCES
     scene/layer.cpp
@@ -75,6 +84,7 @@ add_library(engine STATIC
     ${ENGINE_CORE_SOURCES}
     ${ENGINE_ECS_SOURCES}
     ${ENGINE_RENDER_SOURCES}
+    ${ENGINE_UI_SOURCES}
     ${ENGINE_SCENE_SOURCES}
     ${ENGINE_INPUT_SOURCES}
     ${ENGINE_RESOURCE_SOURCES}

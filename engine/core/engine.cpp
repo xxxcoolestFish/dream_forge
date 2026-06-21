@@ -7,6 +7,7 @@
 #include "engine/core/game_loop.h"
 #include "engine/render/render_backend.h"
 #include "engine/render/sprite.h"
+#include "engine/ui/ui_renderer.h"
 #include "engine/render/scene/camera.h"
 #include "engine/render/scene/scene_renderer.h"
 #include "engine/scene/scene.h"
@@ -47,6 +48,9 @@ struct Engine::Impl
     std::optional<scene::Scene>      activeScene;
     render::Camera                   sceneCamera;
     render::SceneRenderer            sceneRenderer;
+
+    // Phase 4: UI
+    std::unique_ptr<ui::UIRenderer>  uiRenderer;
 };
 
 // =========================================================================
@@ -203,6 +207,9 @@ bool Engine::initECS()
         return false;
     }
 
+    // 4. UI 渲染器（初始为空，可通过 loadUI 加载）
+    m_impl->uiRenderer = std::make_unique<ui::UIRenderer>();
+
     return true;
 }
 
@@ -317,6 +324,18 @@ void Engine::run()
                     m_impl->config.windowWidth,
                     m_impl->config.windowHeight);
             }
+
+            // Phase 4: UI 渲染（最上层）
+            if (m_impl->uiRenderer)
+            {
+                m_impl->uiRenderer->update(static_cast<float>(dt));
+                m_impl->uiRenderer->render(*m_impl->spriteRenderer);
+                if (m_impl->spriteRenderer)
+                    m_impl->spriteRenderer->flush(
+                        m_impl->config.windowWidth,
+                        m_impl->config.windowHeight);
+            }
+
             render.endFrame();
             glfwSwapBuffers(m_impl->window);
 
@@ -420,6 +439,16 @@ bool Engine::loadScene(const std::string& path)
     spdlog::info("Engine: scene '{}' loaded ({} layers)",
         m_impl->activeScene->name, m_impl->activeScene->layers.size());
     return true;
+}
+
+bool Engine::loadUI(const std::string& path)
+{
+    if (!m_impl->uiRenderer)
+    {
+        spdlog::error("Engine::loadUI: UIRenderer not initialized");
+        return false;
+    }
+    return m_impl->uiRenderer->loadFromFile(path);
 }
 
 void Engine::requestQuit()

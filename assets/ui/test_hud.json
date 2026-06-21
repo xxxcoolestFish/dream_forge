@@ -1,0 +1,28 @@
+{
+  "type": "BoxLayout",
+  "id": "root",
+  "rect": [10, 10, 300, 200],
+  "direction": "vertical",
+  "spacing": 6,
+  "padding": 8,
+  "children": [
+    {
+      "type": "Panel",
+      "id": "title_bar",
+      "rect": [0, 0, 280, 36],
+      "color": [40, 40, 60, 255]
+    },
+    {
+      "type": "Button",
+      "id": "btn_talk",
+      "text": "与老陈对话 (E)",
+      "color": [60, 80, 120, 255]
+    },
+    {
+      "type": "Button",
+      "id": "btn_exit",
+      "text": "退出游戏",
+      "color": [120, 60, 60, 255]
+    }
+  ]
+}

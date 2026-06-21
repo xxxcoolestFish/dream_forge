@@ -69,6 +69,9 @@ public:
     // Phase 3: 加载并激活场景（可选的 2.5D 背景场景）
     bool loadScene(const std::string& path);
 
+    // Phase 4: 加载 UI 布局
+    bool loadUI(const std::string& path);
+
     // 请求退出
     void requestQuit();
     bool shouldQuit() const;

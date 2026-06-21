@@ -75,6 +75,12 @@ int main(int argc, char* argv[])
         spdlog::warn("Scene not found, running without 2.5D background.");
     }
 
+    // --- Phase 4: 加载 UI ---
+    if (!engine.loadUI("assets/ui/test_hud.json"))
+    {
+        spdlog::warn("UI not found, running without HUD.");
+    }
+
     spdlog::info("Controls: WASD=move | Arrows=rotate camera (parallax!) | E=talk | ESC=quit");
     spdlog::info("Try LEFT/RIGHT arrows to see near/far layers shift differently!");
 
