@@ -115,23 +115,27 @@ void DialogueSystem::onUpdate(World& world, double dt)
     auto& npcSpeaker = world.getComponent<DialogueSpeaker>(nearestNpc);
     m_pendingNpcName = npcSpeaker.characterId;
 
+    spdlog::info("[DIALOGUE] step 1: E key detected, NPC={}", m_pendingNpcName);
+    spdlog::default_logger()->flush();
+
+    // 先用最简单的请求测试，排除 json 构造问题
     nlohmann::json request;
+    spdlog::info("[DIALOGUE] step 1b: json object created");
+    spdlog::default_logger()->flush();
+
     request["type"] = "llm_dialogue";
-    request["payload"]["npc"] = {
-        {"name", npcSpeaker.characterId},
-        {"personality", npcSpeaker.personalityPrompt},
-        {"background", "这个世界的一位居民。"},
-        {"current_goal", "与路过的冒险者交谈"},
-        {"emotional_state", "neutral"}
-    };
-    request["payload"]["player"] = {
-        {"hp", 100},
-        {"level", 1}
-    };
+    spdlog::info("[DIALOGUE] step 1c: type set");
+    spdlog::default_logger()->flush();
+
+    request["payload"] = nlohmann::json::object();
+    request["payload"]["npc"] = nlohmann::json::object();
+    request["payload"]["npc"]["name"] = npcSpeaker.characterId;
+    request["payload"]["npc"]["personality"] = npcSpeaker.personalityPrompt;
+    request["payload"]["player"] = nlohmann::json::object();
+    request["payload"]["player"]["hp"] = 100;
     request["payload"]["history"] = nlohmann::json::array();
 
-    // --- 发送请求 ---
-    spdlog::info("[DIALOGUE] step 1: E key detected, building request...");
+    spdlog::info("[DIALOGUE] step 1d: payload built");
     spdlog::default_logger()->flush();
 
     spdlog::info("[DIALOGUE] step 2: calling startRequest...");
@@ -139,16 +143,16 @@ void DialogueSystem::onUpdate(World& world, double dt)
 
     if (m_aiClient.startRequest(request))
     {
-        spdlog::info("[DIALOGUE] step 3: startRequest OK, setting wait flag");
+        spdlog::info("[DIALOGUE] step 3: startRequest OK");
         spdlog::default_logger()->flush();
         m_waitingForResponse = true;
     }
     else
     {
-        spdlog::warn("[DIALOGUE] startRequest FAILED - AI service not connected?");
+        spdlog::warn("[DIALOGUE] startRequest FAILED");
         spdlog::default_logger()->flush();
     }
-    spdlog::info("[DIALOGUE] step 4: returning from onUpdate");
+    spdlog::info("[DIALOGUE] step 4: returning");
     spdlog::default_logger()->flush();
     }
     catch (const std::exception& e)
