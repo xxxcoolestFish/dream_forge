@@ -8,6 +8,7 @@
 #include "engine/ecs/component_types.h"
 #include "engine/input/input_system.h"
 #include "engine/core/event_bus.h"
+#include "engine/ecs/event_types.h"
 
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
@@ -73,14 +74,7 @@ void InteractionSystem::onUpdate(World& world, double dt)
         return;
     }
 
-    // 发布交互事件
-    struct InteractionData
-    {
-        Entity sourceEntity;     // 玩家
-        Entity targetEntity;     // 交互目标
-        std::string type;        // "talk", "pickup", "use" 等
-    };
-
+    // 发布交互事件（使用共享的 InteractionData）
     InteractionData data;
     data.sourceEntity = playerEntity;
     data.targetEntity = nearestEntity;

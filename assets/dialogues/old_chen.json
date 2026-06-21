@@ -1,0 +1,67 @@
+{
+  "treeId": "old_chen_intro",
+  "startNodeId": 1,
+  "nodes": {
+    "1": {
+      "type": "condition",
+      "condition": "flag:met_chen == true",
+      "trueNode": 7,
+      "falseNode": 2
+    },
+    "2": {
+      "type": "text",
+      "speaker": "老陈",
+      "text": "嗯？你是谁？从没见过你。",
+      "next": 3
+    },
+    "3": {
+      "type": "choice",
+      "prompt": "你想说什么？",
+      "options": [
+        { "text": "我是路过的旅行者。", "next": 4 },
+        { "text": "听说你这里有好武器？", "next": 5 },
+        { "text": "（保持沉默）", "next": 6 }
+      ]
+    },
+    "4": {
+      "type": "text",
+      "speaker": "老陈",
+      "text": "旅行者？这年头很少有人路过这里了...你可以叫我老陈，这村子的铁匠。",
+      "next": 8
+    },
+    "5": {
+      "type": "text",
+      "speaker": "老陈",
+      "text": "哈！看来你是个识货的。不过最好的武器我只卖给信得过的朋友。",
+      "next": 8
+    },
+    "6": {
+      "type": "text",
+      "speaker": "老陈",
+      "text": "...（老陈静静地打量着你，铁锤在手中转了一圈）",
+      "next": 8
+    },
+    "7": {
+      "type": "text",
+      "speaker": "老陈",
+      "text": "哦，是你啊。今天又来打铁铺逛逛？有什么需要？",
+      "next": 0
+    },
+    "8": {
+      "type": "set_flag",
+      "flag": "met_chen",
+      "value": true,
+      "next": 9
+    },
+    "9": {
+      "type": "text",
+      "speaker": "老陈",
+      "text": "不说闲话了。我最近正缺人手，你要是能帮上忙，我必有重谢。",
+      "next": 10
+    },
+    "10": {
+      "type": "ai_fallback",
+      "context": { "npc": "old_chen", "mood": "hopeful", "topic": "village_troubles" }
+    }
+  }
+}
