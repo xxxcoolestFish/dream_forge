@@ -8,6 +8,7 @@
 #include "engine/render/render_backend.h"
 #include "engine/render/sprite.h"
 #include "engine/ecs/world.h"
+#include "engine/ai/ai_client.h"
 #include "engine/ecs/systems/movement_system.h"
 #include "engine/input/input_system.h"
 
@@ -31,6 +32,7 @@ struct Engine::Impl
     std::unique_ptr<render::SpriteRenderer> spriteRenderer;
     std::unique_ptr<ecs::World>             ecsWorld;
     std::unique_ptr<input::InputSystem>     inputSystem;
+    std::unique_ptr<ai::AiClient>           aiClient;
     std::unique_ptr<GameLoop>               gameLoop;
 };
 
@@ -161,12 +163,24 @@ bool Engine::initECS()
     );
 
     spdlog::info("  ECS World initialized with {} system(s).", 1);
-    // 初始化精灵渲染器
+
+    // 精灵渲染器
     m_impl->spriteRenderer = std::make_unique<render::SpriteRenderer>();
     if (!m_impl->spriteRenderer->init())
     {
         spdlog::critical("Failed to initialize sprite renderer");
         return false;
+    }
+
+    // AI 客户端（连接 Python 服务，可选）
+    m_impl->aiClient = std::make_unique<ai::AiClient>();
+    if (m_impl->aiClient->connect())
+    {
+        spdlog::info("  AI client connected to Python service.");
+    }
+    else
+    {
+        spdlog::warn("  AI client not connected (Python service not running).");
     }
 
     return true;
@@ -282,6 +296,8 @@ void Engine::shutdown()
 
     // 逆序销毁子系统
 m_impl->ecsWorld.reset();
+    m_impl->aiClient->disconnect();
+    m_impl->aiClient.reset();
     m_impl->spriteRenderer->shutdown();
     m_impl->spriteRenderer.reset();
     m_impl->inputSystem->shutdown();

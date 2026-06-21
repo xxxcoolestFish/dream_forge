@@ -52,6 +52,11 @@ set(ENGINE_RESOURCE_SOURCES
     resource/resource_manager.cpp
 )
 
+# --- Phase 2: ai ---
+set(ENGINE_AI_SOURCES
+    ai/ai_client.cpp
+)
+
 # -----------------------------------------------------------------------------
 # 库声明
 # -----------------------------------------------------------------------------
@@ -61,6 +66,7 @@ add_library(engine STATIC
     ${ENGINE_RENDER_SOURCES}
     ${ENGINE_INPUT_SOURCES}
     ${ENGINE_RESOURCE_SOURCES}
+    ${ENGINE_AI_SOURCES}
 )
 
 # 输出目录统一
@@ -78,6 +84,8 @@ target_link_libraries(engine PUBLIC
     spdlog::spdlog
     nlohmann_json::nlohmann_json
     OpenGL::GL
+    libzmq
+    cppzmq
 )
 
 # 引擎需要 GLFW 头文件公开暴露（输入系统中引用 GLFW 类型）
@@ -88,6 +96,8 @@ target_include_directories(engine PUBLIC
     ${glm_SOURCE_DIR}
     ${spdlog_SOURCE_DIR}/include
     ${nlohmann_json_SOURCE_DIR}/include
+    ${libzmq_SOURCE_DIR}/include
+    ${cppzmq_SOURCE_DIR}
 )
 
 # -----------------------------------------------------------------------------

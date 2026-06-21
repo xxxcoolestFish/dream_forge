@@ -123,6 +123,29 @@ FetchContent_Declare(stb
 )
 FetchContent_MakeAvailable(stb)
 
+# --- ZeroMQ（C++ ↔ Python IPC 通信） ---
+# libzmq: C 库；cppzmq: C++ 头文件封装
+FetchContent_Declare(libzmq
+    GIT_REPOSITORY https://gitcode.com/zeromq/libzmq.git
+    GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
+)
+set(BUILD_SHARED ON CACHE BOOL "" FORCE)
+set(BUILD_STATIC OFF CACHE BOOL "" FORCE)
+set(ZMQ_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(WITH_PERF_TOOL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(libzmq)
+
+FetchContent_Declare(cppzmq
+    GIT_REPOSITORY https://gitcode.com/zeromq/cppzmq.git
+    GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
+)
+set(CPPZMQ_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(cppzmq)
+
 # -----------------------------------------------------------------------------
 # 子目录
 # -----------------------------------------------------------------------------
