@@ -93,27 +93,31 @@ std::optional<json> AiClient::sendAndPoll()
 
     try
     {
-        // --- Step 1: 发送（非阻塞） ---
+// --- Step 1: 发送（非阻塞） ---
         if (impl.state == Impl::State::ReadyToSend)
         {
             std::string msgStr = impl.requestData.dump();
 
-            // 使用 zmq::poll 检查 socket 是否可发送
             zmq::pollitem_t items[] = {
                 { *impl.socket, 0, ZMQ_POLLOUT, 0 }
             };
-            int rc = zmq::poll(items, 1, 0); // 0ms 超时 = 立即返回
+            int rc = zmq::poll(items, 1, 0);
 
             if (rc > 0 && (items[0].revents & ZMQ_POLLOUT))
             {
-                // 可以发送
                 zmq::message_t message(msgStr.size());
                 memcpy(message.data(), msgStr.data(), msgStr.size());
-                impl.socket->send(message, zmq::send_flags::dontwait);
+                auto sendResult = impl.socket->send(message, zmq::send_flags::dontwait);
                 impl.state = Impl::State::WaitingForResponse;
-                spdlog::debug("AiClient: request sent ({} bytes)", msgStr.size());
+                spdlog::info("AiClient: >>> SENT request to AI service ({} bytes)", msgStr.size());
             }
-            // 如果不能发送，下帧再试
+            else
+            {
+                // 每60帧打印一次，避免刷屏
+                static int pollOutFailCount = 0;
+                if (++pollOutFailCount % 60 == 0)
+                    spdlog::warn("AiClient: waiting for socket ready... (POLLOUT not ready, retry {})", pollOutFailCount);
+            }
         }
 
         // --- Step 2: 接收（非阻塞） ---
@@ -122,7 +126,7 @@ std::optional<json> AiClient::sendAndPoll()
             zmq::pollitem_t items[] = {
                 { *impl.socket, 0, ZMQ_POLLIN, 0 }
             };
-            int rc = zmq::poll(items, 1, 0); // 0ms 超时
+            int rc = zmq::poll(items, 1, 0);
 
             if (rc > 0 && (items[0].revents & ZMQ_POLLIN))
             {
@@ -133,9 +137,15 @@ std::optional<json> AiClient::sendAndPoll()
                 {
                     std::string replyStr(static_cast<char*>(reply.data()), reply.size());
                     impl.state = Impl::State::Idle;
-                    spdlog::debug("AiClient: response received ({} bytes)", replyStr.size());
+                    spdlog::info("AiClient: <<< RECEIVED response from AI service ({} bytes)", replyStr.size());
                     return json::parse(replyStr);
                 }
+            }
+            else
+            {
+                static int pollInFailCount = 0;
+                if (++pollInFailCount % 120 == 0)
+                    spdlog::info("AiClient: waiting for LLM response... ({}s elapsed)", pollInFailCount / 60);
             }
         }
     }
