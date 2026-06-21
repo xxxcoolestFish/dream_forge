@@ -344,9 +344,10 @@ void Engine::run()
                     if (m_impl->inputSystem->isMousePressed(
                             engine::input::MouseButton::Left))
                     {
-                        m_impl->uiRenderer->onMouseDown(
-                            static_cast<float>(m_impl->inputSystem->mouseX()),
-                            static_cast<float>(m_impl->inputSystem->mouseY()));
+                        float mx = static_cast<float>(m_impl->inputSystem->mouseX());
+                        float my = static_cast<float>(m_impl->inputSystem->mouseY());
+                        spdlog::debug("Mouse click at ({:.0f}, {:.0f})", mx, my);
+                        m_impl->uiRenderer->onMouseDown(mx, my);
                     }
                 }
             }

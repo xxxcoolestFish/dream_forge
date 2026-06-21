@@ -129,7 +129,17 @@ void UIRenderer::onMouseDown(float x, float y)
 {
     if (!m_root) return;
     Widget* hit = m_root->hitTest(x, y);
-    if (hit) hit->onMouseDown(x, y);
+    if (hit)
+    {
+        spdlog::info("UI click: ({:.0f},{:.0f}) -> widget '{}' (type={})",
+            x, y, hit->id(),
+            typeid(*hit).name());
+        hit->onMouseDown(x, y);
+    }
+    else
+    {
+        spdlog::debug("UI click: ({:.0f},{:.0f}) -> no hit", x, y);
+    }
 }
 
 void UIRenderer::onMouseUp(float x, float y)
