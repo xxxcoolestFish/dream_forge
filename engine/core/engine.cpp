@@ -7,6 +7,10 @@
 #include "engine/core/game_loop.h"
 #include "engine/render/render_backend.h"
 #include "engine/render/sprite.h"
+#include "engine/render/scene/camera.h"
+#include "engine/render/scene/scene_renderer.h"
+#include "engine/scene/scene.h"
+#include "engine/scene/scene_loader.h"
 #include "engine/ecs/world.h"
 #include "engine/ai/ai_client.h"
 #include "engine/ecs/systems/movement_system.h"
@@ -36,6 +40,11 @@ struct Engine::Impl
     std::unique_ptr<input::InputSystem>     inputSystem;
     std::unique_ptr<ai::AiClient>           aiClient;
     std::unique_ptr<GameLoop>               gameLoop;
+
+    // Phase 3: 场景渲染
+    std::optional<scene::Scene>      activeScene;
+    render::Camera                   sceneCamera;
+    render::SceneRenderer            sceneRenderer;
 };
 
 // =========================================================================
@@ -260,6 +269,19 @@ void Engine::run()
                     m_impl->shouldQuit = true;
                     break;
                 }
+
+                // Phase 3: 方向键旋转相机（视差效果）
+                if (m_impl->activeScene)
+                {
+                    auto& cam = m_impl->sceneCamera;
+                    float hRot = 0.0f, vRot = 0.0f;
+                    float rotSpeed = 30.0f; // 度/秒
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_LEFT))  hRot -= rotSpeed * static_cast<float>(dt);
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_RIGHT)) hRot += rotSpeed * static_cast<float>(dt);
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_UP))    vRot -= rotSpeed * 0.3f * static_cast<float>(dt);
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_DOWN))  vRot += rotSpeed * 0.3f * static_cast<float>(dt);
+                    cam.setRotation(cam.horizontalAngle() + hRot, cam.verticalAngle() + vRot);
+                }
             }
 
             // --- 逻辑更新 ---
@@ -267,6 +289,21 @@ void Engine::run()
 
             // --- 渲染 ---
             render.beginFrame();
+
+            // Phase 3: 先渲染场景层（背景 → 前景），再渲染 ECS 精灵（玩家、NPC）
+            if (m_impl->activeScene && m_impl->spriteRenderer)
+            {
+                m_impl->sceneRenderer.render(
+                    *m_impl->activeScene,
+                    m_impl->sceneCamera,
+                    *m_impl->spriteRenderer,
+                    m_impl->config.windowWidth,
+                    m_impl->config.windowHeight);
+                m_impl->spriteRenderer->flush(
+                    m_impl->config.windowWidth,
+                    m_impl->config.windowHeight);
+            }
+
             if (m_impl->spriteRenderer)
             {
                 m_impl->spriteRenderer->render(
@@ -351,6 +388,27 @@ ecs::World* Engine::ecsWorld() const
 input::InputSystem* Engine::inputSystem() const
 {
     return m_impl->inputSystem.get();
+}
+
+bool Engine::loadScene(const std::string& path)
+{
+    auto sceneOpt = scene::SceneLoader::loadFromFile(path);
+    if (!sceneOpt)
+    {
+        spdlog::error("Engine::loadScene: failed to load '{}': {}",
+            path, scene::SceneLoader::lastError());
+        return false;
+    }
+
+    m_impl->activeScene = std::move(*sceneOpt);
+    m_impl->sceneCamera.setScreenSize(
+        static_cast<float>(m_impl->config.windowWidth),
+        static_cast<float>(m_impl->config.windowHeight));
+    m_impl->sceneCamera.setPosition(640.0f, 360.0f); // 默认看场景中心
+
+    spdlog::info("Engine: scene '{}' loaded ({} layers)",
+        m_impl->activeScene->name, m_impl->activeScene->layers.size());
+    return true;
 }
 
 void Engine::requestQuit()

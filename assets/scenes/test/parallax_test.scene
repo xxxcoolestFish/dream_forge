@@ -1,0 +1,65 @@
+{
+  "name": "视差测试场景",
+  "description": "Phase 3 2.5D 视差渲染验证 — 不同深度的彩色矩形",
+  "version": "0.1.0",
+  "background": {
+    "texture": "",
+    "size": [1280, 720]
+  },
+  "layers": [
+    {
+      "id": "sky",
+      "name": "天空背景",
+      "texture": "",
+      "depth": 0.0,
+      "offset": [640, 360],
+      "visible": true,
+      "vertices": [
+        {"px": 0, "py": 0, "u": 0, "v": 0},
+        {"px": 1280, "py": 0, "u": 1, "v": 0},
+        {"px": 1280, "py": 720, "u": 1, "v": 1},
+        {"px": 0, "py": 720, "u": 0, "v": 1}
+      ]
+    },
+    {
+      "id": "mountain_far",
+      "name": "远山",
+      "texture": "",
+      "depth": 0.2,
+      "offset": [300, 350],
+      "visible": true
+    },
+    {
+      "id": "tree_mid",
+      "name": "中景树",
+      "texture": "",
+      "depth": 0.5,
+      "offset": [600, 400],
+      "visible": true
+    },
+    {
+      "id": "house",
+      "name": "房屋",
+      "texture": "",
+      "depth": 0.7,
+      "offset": [700, 450],
+      "visible": true
+    },
+    {
+      "id": "fence_front",
+      "name": "前景栅栏",
+      "texture": "",
+      "depth": 0.9,
+      "offset": [400, 500],
+      "visible": true
+    }
+  ],
+  "entities": [
+    {
+      "type": "npc",
+      "templateId": "old_chen",
+      "position": [500, 420, 0.7],
+      "rotation": 0
+    }
+  ]
+}

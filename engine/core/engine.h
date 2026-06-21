@@ -63,6 +63,9 @@ public:
     // 获取输入系统
     class input::InputSystem* inputSystem() const;
 
+    // Phase 3: 加载并激活场景（可选的 2.5D 背景场景）
+    bool loadScene(const std::string& path);
+
     // 请求退出
     void requestQuit();
     bool shouldQuit() const;

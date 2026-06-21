@@ -1,12 +1,12 @@
 /**
  * @file sample/main.cpp
- * @brief 示例游戏入口 — Phase 1 Step 3：ECS 管线验证
+ * @brief Phase 3: 2.5D 视差场景渲染演示
  *
- * 验证：
- *   1. GLFW 窗口 + OpenGL 3.3 渲染
- *   2. ECS World 创建 + MovementSystem 注册
- *   3. Entity 创建 + Component 挂载
- *   4. System 每帧执行（日志可见 MovementSystem 在更新 Entity 位置）
+ * 操作：
+ *   WASD     = 移动玩家（蓝色方块）
+ *   方向键   = 旋转相机（↑↓←→）→ 不同深度层产生不同视差
+ *   E        = 与 NPC 对话
+ *   ESC      = 退出
  */
 
 #include "engine/core/engine.h"
@@ -24,21 +24,18 @@ int main(int argc, char* argv[])
     (void)argc; (void)argv;
 
 #ifdef _WIN32
-    // 设置控制台为 UTF-8，避免中文乱码
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
 
     spdlog::set_level(spdlog::level::debug);
-    spdlog::info("=== AI Game Frame — Phase 1 Step 3: ECS Pipeline Test ===");
+    spdlog::info("=== AI Game Frame — Phase 3: 2.5D Parallax Scene ===");
 
-    // 配置引擎
     engine::EngineConfig config;
-    config.windowTitle  = "AI Game Frame — Step 3 (ECS)";
+    config.windowTitle  = "AI Game Frame — Phase 3 (2.5D Parallax)";
     config.windowWidth  = 1280;
     config.windowHeight = 720;
 
-    // 初始化引擎
     engine::Engine engine;
     if (!engine.init(config))
     {
@@ -46,63 +43,40 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // --- ECS 测试：创建 Entity ---
+    // --- ECS Entity ---
     auto* world = engine.ecsWorld();
 
-    // 创建玩家 Entity（挂 Player 标签，MovementSystem 只移动玩家）
     auto player = world->createEntity();
     world->addComponent<engine::ecs::Transform>(player);
     world->addComponent<engine::ecs::Sprite>(player);
     world->addComponent<engine::ecs::Stats>(player);
     world->addComponent<engine::ecs::Player>(player);
+    auto& pt = world->getComponent<engine::ecs::Transform>(player);
+    pt.position = glm::vec3(200.0f, 350.0f, 0.0f);
+    world->getComponent<engine::ecs::Sprite>(player).tint = glm::vec4(0.2f, 0.6f, 1.0f, 1.0f);
 
-    auto& playerTransform = world->getComponent<engine::ecs::Transform>(player);
-    playerTransform.position = glm::vec3(100.0f, 100.0f, 0.0f);
-
-    auto& playerSprite = world->getComponent<engine::ecs::Sprite>(player);
-    playerSprite.tint = glm::vec4(0.2f, 0.6f, 1.0f, 1.0f); // 蓝色
-
-    auto& playerStats = world->getComponent<engine::ecs::Stats>(player);
-    playerStats.set("hp", 100.0f);
-    playerStats.set("xp", 0.0f);
-
-    spdlog::info("Player entity created (id={}): pos=({:.0f}, {:.0f}), color=blue",
-        static_cast<uint32_t>(player),
-        playerTransform.position.x,
-        playerTransform.position.y);
-
-    // 创建 NPC Entity（挂 DialogueSpeaker，可按 E 对话）
     auto npc = world->createEntity();
     world->addComponent<engine::ecs::Transform>(npc);
     world->addComponent<engine::ecs::Sprite>(npc);
     world->addComponent<engine::ecs::DialogueSpeaker>(npc);
-    auto& npcTransform = world->getComponent<engine::ecs::Transform>(npc);
-    npcTransform.position = glm::vec3(400.0f, 200.0f, 0.0f);
-    auto& npcSprite = world->getComponent<engine::ecs::Sprite>(npc);
-    npcSprite.tint = glm::vec4(1.0f, 0.4f, 0.3f, 1.0f); // 红色
-    auto& npcSpeaker = world->getComponent<engine::ecs::DialogueSpeaker>(npc);
-    npcSpeaker.characterId = "老陈";
-    npcSpeaker.personalityPrompt = "暴躁但善良的老铁匠，年轻时是冒险者";
+    auto& nt = world->getComponent<engine::ecs::Transform>(npc);
+    nt.position = glm::vec3(500.0f, 420.0f, 0.0f);
+    world->getComponent<engine::ecs::Sprite>(npc).tint = glm::vec4(1.0f, 0.4f, 0.3f, 1.0f);
+    auto& ns = world->getComponent<engine::ecs::DialogueSpeaker>(npc);
+    ns.characterId = "老陈";
+    ns.personalityPrompt = "暴躁但善良的老铁匠";
 
-    spdlog::info("NPC '{}' created (id={}): pos=({:.0f}, {:.0f}), press E to talk",
-        npcSpeaker.characterId,
-        static_cast<uint32_t>(npc),
-        npcTransform.position.x,
-        npcTransform.position.y);
+    // --- Phase 3: 加载场景 ---
+    if (!engine.loadScene("assets/scenes/test/parallax_test.scene"))
+    {
+        spdlog::warn("Scene not found, running without 2.5D background.");
+    }
 
-    spdlog::info("Starting main loop (entities will be moved by MovementSystem)...");
-    spdlog::info("Press ESC or close window to exit.");
+    spdlog::info("Controls: WASD=move | Arrows=rotate camera (parallax!) | E=talk | ESC=quit");
+    spdlog::info("Try LEFT/RIGHT arrows to see near/far layers shift differently!");
 
-    // 进入主循环
     engine.run();
-
-    // 退出前查看最终位置
-    spdlog::info("Final player position: ({:.0f}, {:.0f})",
-        playerTransform.position.x, playerTransform.position.y);
-    spdlog::info("Final NPC position: ({:.0f}, {:.0f})",
-        npcTransform.position.x, npcTransform.position.y);
-
     engine.shutdown();
-    spdlog::info("=== Sample Game Exited Successfully ===");
+
     return 0;
 }
