@@ -15,9 +15,20 @@
 
 #include <spdlog/spdlog.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 int main(int argc, char* argv[])
 {
     (void)argc; (void)argv;
+
+#ifdef _WIN32
+    // 设置控制台为 UTF-8，避免中文乱码
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+
     spdlog::set_level(spdlog::level::debug);
     spdlog::info("=== AI Game Frame — Phase 1 Step 3: ECS Pipeline Test ===");
 

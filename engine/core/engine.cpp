@@ -16,6 +16,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <typeinfo>
 
 namespace engine {
 
@@ -235,54 +236,68 @@ void Engine::run()
 
     while (!m_impl->shouldQuit && !glfwWindowShouldClose(m_impl->window))
     {
-        // 计算 delta time
-        double currentTime = glfwGetTime();
-        double dt = currentTime - lastTime;
-        lastTime = currentTime;
-
-        // 防止首帧 dt 过大
-        if (dt > 0.1) dt = 0.016;
-
-        // 轮询 GLFW 事件
-        glfwPollEvents();
-
-        // --- 输入轮询（必须在逻辑更新之前） ---
-        if (m_impl->inputSystem)
+        try
         {
-            m_impl->inputSystem->poll();
+            // 计算 delta time
+            double currentTime = glfwGetTime();
+            double dt = currentTime - lastTime;
+            lastTime = currentTime;
 
-            // ESC 退出
-            if (m_impl->inputSystem->isKeyPressed(GLFW_KEY_ESCAPE))
+            // 防止首帧 dt 过大
+            if (dt > 0.1) dt = 0.016;
+
+            // 轮询 GLFW 事件
+            glfwPollEvents();
+
+            // --- 输入轮询（必须在逻辑更新之前） ---
+            if (m_impl->inputSystem)
             {
-                m_impl->shouldQuit = true;
-                break;
+                m_impl->inputSystem->poll();
+
+                // ESC 退出
+                if (m_impl->inputSystem->isKeyPressed(GLFW_KEY_ESCAPE))
+                {
+                    m_impl->shouldQuit = true;
+                    break;
+                }
+            }
+
+            // --- 逻辑更新 ---
+            world.updateSystems(dt);
+
+            // --- 渲染 ---
+            render.beginFrame();
+            if (m_impl->spriteRenderer)
+            {
+                m_impl->spriteRenderer->render(
+                    world,
+                    m_impl->config.windowWidth,
+                    m_impl->config.windowHeight);
+            }
+            render.endFrame();
+            glfwSwapBuffers(m_impl->window);
+
+            // 每秒打印一次帧率
+            frameCount++;
+            static double fpsTimer = 0.0;
+            fpsTimer += dt;
+            if (fpsTimer >= 1.0)
+            {
+                spdlog::debug("FPS: {:.1f}", frameCount / fpsTimer);
+                frameCount = 0;
+                fpsTimer   = 0.0;
             }
         }
-
-        // --- 逻辑更新 ---
-        world.updateSystems(dt);
-
-        // --- 渲染 ---
-        render.beginFrame();
-        if (m_impl->spriteRenderer)
+        catch (const std::exception& e)
         {
-            m_impl->spriteRenderer->render(
-                world,
-                m_impl->config.windowWidth,
-                m_impl->config.windowHeight);
+            spdlog::error("!!! Exception in game loop: {}", e.what());
+            spdlog::error("!!! Type: {}", typeid(e).name());
+            break;
         }
-        render.endFrame();
-        glfwSwapBuffers(m_impl->window);
-
-        // 每秒打印一次帧率
-        frameCount++;
-        static double fpsTimer = 0.0;
-        fpsTimer += dt;
-        if (fpsTimer >= 1.0)
+        catch (...)
         {
-            spdlog::debug("FPS: {:.1f}", frameCount / fpsTimer);
-            frameCount = 0;
-            fpsTimer   = 0.0;
+            spdlog::error("!!! Unknown exception in game loop");
+            break;
         }
     }
 

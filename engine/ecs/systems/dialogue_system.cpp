@@ -19,6 +19,7 @@
 #include <glm/glm.hpp>
 #include <nlohmann/json.hpp>
 #include <cmath>
+#include <typeinfo>
 
 namespace engine::ecs {
 
@@ -31,9 +32,11 @@ DialogueSystem::DialogueSystem(input::InputSystem& input, ai::AiClient& aiClient
 
 void DialogueSystem::onUpdate(World& world, double dt)
 {
-    // --- 轮询响应 ---
-    if (m_waitingForResponse)
+    try
     {
+        // --- 轮询响应 ---
+        if (m_waitingForResponse)
+        {
         auto response = m_aiClient.sendAndPoll();
         if (response.has_value())
         {
@@ -138,6 +141,17 @@ void DialogueSystem::onUpdate(World& world, double dt)
     {
         spdlog::warn("无法发送对话请求（AI 服务未连接？）");
         spdlog::info("请先启动：python ai_service/main.py --model qwen2.5:7b");
+    }
+    }
+    catch (const std::exception& e)
+    {
+        spdlog::error("DialogueSystem exception: {} ({})", e.what(), typeid(e).name());
+        m_waitingForResponse = false;
+    }
+    catch (...)
+    {
+        spdlog::error("DialogueSystem unknown exception");
+        m_waitingForResponse = false;
     }
 }
 
