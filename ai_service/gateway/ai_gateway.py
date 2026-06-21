@@ -21,6 +21,14 @@ class AiGateway:
 
         print(f"[Gateway] Initialized with {provider}/{model}")
 
+        # 预热模型（第一次推理需要加载到显存，耗时较长）
+        print(f"[Gateway] Warming up model (first load into VRAM may take 10-30s)...")
+        try:
+            self.llm.complete([{"role": "user", "content": "Hello."}])
+            print(f"[Gateway] Model warmup complete.")
+        except Exception as e:
+            print(f"[Gateway] Warmup warning (non-fatal): {e}")
+
     def _create_provider(self, provider: str, model: str) -> LLMProvider:
         """工厂方法：根据配置创建 LLM Provider"""
         if provider == "ollama":
