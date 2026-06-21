@@ -25,10 +25,11 @@ static bool registerWidgetTypes()
     static bool done = false;
     if (!done)
     {
-        Widget::registerType("Panel",     Panel::fromJson);
-        Widget::registerType("Button",    Button::fromJson);
-        Widget::registerType("Text",      Text::fromJson);
-        Widget::registerType("BoxLayout", BoxLayout::fromJson);
+        Widget::registerType("Panel",      Panel::fromJson);
+        Widget::registerType("Button",     Button::fromJson);
+        Widget::registerType("Text",       Text::fromJson);
+        Widget::registerType("BoxLayout",  BoxLayout::fromJson);
+        Widget::registerType("FlexLayout", FlexLayout::fromJson);
         done = true;
     }
     return done;
