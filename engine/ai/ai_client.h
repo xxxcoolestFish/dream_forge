@@ -1,6 +1,6 @@
 /**
  * @file engine/ai/ai_client.h
- * @brief AI 服务客户端 — 通过 ZeroMQ 与 Python AI 进程通信
+ * @brief AI 服务客户端
  */
 
 #pragma once
@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include <optional>
+#include <future>
 #include <nlohmann/json.hpp>
 
 namespace engine::ai {
@@ -26,17 +27,14 @@ public:
     bool connect(const std::string& address = "tcp://127.0.0.1:5555");
     void disconnect();
 
-    // 发送请求并立即返回（不阻塞主循环）
-    // 请求进入"待发送"状态，下一帧 sendAndPoll 会实际发送
+    // 异步发送请求（返回 future，在后台线程执行）
+    // 调用 pollResponse() 检查是否完成
     bool startRequest(const json& request);
 
-    // 每帧调用：发送待发请求 + 非阻塞轮询响应
-    // 如果有响应，返回响应内容；否则返回 nullopt
-    std::optional<json> sendAndPoll();
+    // 检查请求是否完成，如果完成返回响应
+    std::optional<json> pollResponse();
 
-    // 是否有待处理的请求
     bool hasPendingRequest() const;
-
     bool isConnected() const { return m_connected; }
 
 private:

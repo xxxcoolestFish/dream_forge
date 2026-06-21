@@ -1,24 +1,81 @@
 /**
  * @file engine/ai/ai_client.cpp
- * @brief AI 客户端 — zmq::poll 非阻塞模式，绝不在主循环中阻塞
+ * @brief AI 客户端 — std::async 后台线程 + future 轮询
+ *
+ * 设计：
+ *   startRequest() → 在 std::async 中同步发送+接收（阻塞后台线程）
+ *   pollResponse() → 检查 future 是否就绪，非阻塞
+ *
+ * 后台线程阻塞不影响 240FPS 主循环。
  */
 
 #include "engine/ai/ai_client.h"
 
 #include <zmq.hpp>
+#include <zmq_addon.hpp>
 #include <spdlog/spdlog.h>
+#include <thread>
 
 namespace engine::ai {
 
 struct AiClient::Impl
 {
     std::unique_ptr<zmq::context_t> context;
-    std::unique_ptr<zmq::socket_t>  socket;
     std::string                     address;
 
-    enum class State { Idle, ReadyToSend, WaitingForResponse };
-    State state = State::Idle;
-    json  requestData;
+    // 后台请求
+    std::future<json> pendingFuture;
+    bool              requestInFlight = false;
+
+    // 在后台线程中执行同步请求
+    static json doRequest(zmq::context_t* ctx, const std::string& addr,
+                          const json& requestData)
+    {
+        try
+        {
+            zmq::socket_t socket(*ctx, zmq::socket_type::req);
+            socket.set(zmq::sockopt::rcvtimeo, 30000); // 30秒超时（LLM需要时间）
+            socket.set(zmq::sockopt::sndtimeo, 5000);
+            socket.set(zmq::sockopt::linger, 0);
+            socket.connect(addr);
+
+            // 发送
+            std::string msgStr = requestData.dump();
+            zmq::message_t message(msgStr.size());
+            memcpy(message.data(), msgStr.data(), msgStr.size());
+            socket.send(message, zmq::send_flags::none);
+
+            // 接收
+            zmq::message_t reply;
+            auto result = socket.recv(reply, zmq::recv_flags::none);
+
+            socket.close();
+
+            if (result.has_value())
+            {
+                std::string replyStr(static_cast<char*>(reply.data()), reply.size());
+                return json::parse(replyStr);
+            }
+
+            return json::object(); // timeout
+        }
+        catch (const zmq::error_t& e)
+        {
+            spdlog::warn("AiClient::doRequest: ZMQ error: {}", e.what());
+            json err;
+            err["status"] = "error";
+            err["error"] = std::string("ZMQ: ") + e.what();
+            return err;
+        }
+        catch (const std::exception& e)
+        {
+            spdlog::warn("AiClient::doRequest: error: {}", e.what());
+            json err;
+            err["status"] = "error";
+            err["error"] = e.what();
+            return err;
+        }
+    }
 };
 
 AiClient::AiClient()
@@ -39,26 +96,14 @@ bool AiClient::connect(const std::string& address)
     try
     {
         m_impl->context = std::make_unique<zmq::context_t>(1);
-        m_impl->socket  = std::make_unique<zmq::socket_t>(*m_impl->context, zmq::socket_type::req);
-
-        // 关键：所有操作都不阻塞
-        int timeout = 1; // 1ms 超时
-        m_impl->socket->set(zmq::sockopt::rcvtimeo, timeout);
-        m_impl->socket->set(zmq::sockopt::sndtimeo, timeout);
-        int linger = 0;
-        m_impl->socket->set(zmq::sockopt::linger, linger);
-
-        m_impl->socket->connect(address);
         m_impl->address = address;
-
         m_connected = true;
-        spdlog::info("AiClient connected to Python AI service at {}", address);
+        spdlog::info("AiClient ready, address={}", address);
         return true;
     }
     catch (const zmq::error_t& e)
     {
-        spdlog::error("AiClient: ZeroMQ error: {}", e.what());
-        m_connected = false;
+        spdlog::error("AiClient: ZeroMQ context error: {}", e.what());
         return false;
     }
 }
@@ -66,12 +111,18 @@ bool AiClient::connect(const std::string& address)
 void AiClient::disconnect()
 {
     if (!m_connected) return;
-    try {
-        m_impl->socket->close();
-        m_impl->socket.reset();
-        m_impl->context->close();
-        m_impl->context.reset();
-    } catch (...) {}
+
+    // 等待后台请求完成
+    if (m_impl->requestInFlight)
+    {
+        try { m_impl->pendingFuture.wait_for(std::chrono::seconds(2)); }
+        catch (...) {}
+    }
+
+    try { m_impl->context->close(); }
+    catch (...) {}
+
+    m_impl->context.reset();
     m_connected = false;
     spdlog::info("AiClient disconnected.");
 }
@@ -79,91 +130,44 @@ void AiClient::disconnect()
 bool AiClient::startRequest(const json& request)
 {
     if (!m_connected) return false;
-    if (m_impl->state != Impl::State::Idle) return false;
+    if (m_impl->requestInFlight) return false;
 
-    m_impl->requestData = request;
-    m_impl->state = Impl::State::ReadyToSend;
+    spdlog::info("AiClient: launching async request...");
+
+    // 在后台线程执行同步请求
+    zmq::context_t* ctx = m_impl->context.get();
+    std::string addr = m_impl->address;
+
+    m_impl->pendingFuture = std::async(std::launch::async,
+        [ctx, addr, request]() -> json {
+            return Impl::doRequest(ctx, addr, request);
+        });
+
+    m_impl->requestInFlight = true;
     return true;
 }
 
-std::optional<json> AiClient::sendAndPoll()
+std::optional<json> AiClient::pollResponse()
 {
-    if (!m_connected) return std::nullopt;
-    auto& impl = *m_impl;
+    if (!m_impl->requestInFlight) return std::nullopt;
 
-    try
+    // 检查 future 是否完成（非阻塞）
+    auto status = m_impl->pendingFuture.wait_for(std::chrono::milliseconds(0));
+
+    if (status == std::future_status::ready)
     {
-// --- Step 1: 发送（非阻塞） ---
-        if (impl.state == Impl::State::ReadyToSend)
+        m_impl->requestInFlight = false;
+        try
         {
-            std::string msgStr = impl.requestData.dump();
-
-            zmq::pollitem_t items[] = {
-                { *impl.socket, 0, ZMQ_POLLOUT, 0 }
-            };
-            int rc = zmq::poll(items, 1, 0);
-
-            if (rc > 0 && (items[0].revents & ZMQ_POLLOUT))
-            {
-                zmq::message_t message(msgStr.size());
-                memcpy(message.data(), msgStr.data(), msgStr.size());
-                auto sendResult = impl.socket->send(message, zmq::send_flags::dontwait);
-                impl.state = Impl::State::WaitingForResponse;
-                spdlog::info("AiClient: >>> SENT request to AI service ({} bytes)", msgStr.size());
-            }
-            else
-            {
-                // 每60帧打印一次，避免刷屏
-                static int pollOutFailCount = 0;
-                if (++pollOutFailCount % 60 == 0)
-                    spdlog::warn("AiClient: waiting for socket ready... (POLLOUT not ready, retry {})", pollOutFailCount);
-            }
+            json result = m_impl->pendingFuture.get();
+            spdlog::info("AiClient: response received");
+            return result;
         }
-
-        // --- Step 2: 接收（非阻塞） ---
-        if (impl.state == Impl::State::WaitingForResponse)
+        catch (const std::exception& e)
         {
-            zmq::pollitem_t items[] = {
-                { *impl.socket, 0, ZMQ_POLLIN, 0 }
-            };
-            int rc = zmq::poll(items, 1, 0);
-
-            if (rc > 0 && (items[0].revents & ZMQ_POLLIN))
-            {
-                zmq::message_t reply;
-                auto recvResult = impl.socket->recv(reply, zmq::recv_flags::dontwait);
-
-                if (recvResult.has_value())
-                {
-                    std::string replyStr(static_cast<char*>(reply.data()), reply.size());
-                    impl.state = Impl::State::Idle;
-                    spdlog::info("AiClient: <<< RECEIVED response from AI service ({} bytes)", replyStr.size());
-                    return json::parse(replyStr);
-                }
-            }
-            else
-            {
-                static int pollInFailCount = 0;
-                if (++pollInFailCount % 120 == 0)
-                    spdlog::info("AiClient: waiting for LLM response... ({}s elapsed)", pollInFailCount / 60);
-            }
+            spdlog::error("AiClient: future exception: {}", e.what());
+            return json::object();
         }
-    }
-    catch (const zmq::error_t& e)
-    {
-        spdlog::warn("AiClient: ZMQ error: {} (state={})",
-            e.what(), static_cast<int>(impl.state));
-        impl.state = Impl::State::Idle;
-    }
-    catch (const json::parse_error& e)
-    {
-        spdlog::warn("AiClient: JSON parse error: {}", e.what());
-        impl.state = Impl::State::Idle;
-    }
-    catch (const std::exception& e)
-    {
-        spdlog::error("AiClient: unexpected error: {}", e.what());
-        impl.state = Impl::State::Idle;
     }
 
     return std::nullopt;
@@ -171,7 +175,7 @@ std::optional<json> AiClient::sendAndPoll()
 
 bool AiClient::hasPendingRequest() const
 {
-    return m_impl->state != Impl::State::Idle;
+    return m_impl->requestInFlight;
 }
 
 } // namespace engine::ai

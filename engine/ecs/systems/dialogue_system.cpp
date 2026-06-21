@@ -4,7 +4,7 @@
  *
  * 状态机：Idle →（E键）→ WaitingResponse →（收到回复）→ Idle
  *
- * AI 请求由 engine.run() 主循环中的 sendAndPoll() 统一处理，
+ * AI 请求由 engine.run() 主循环中的 pollResponse() 统一处理，
  * 本 System 只负责：检测 E 键 → 构建请求 → 解析响应 → 打印结果。
  */
 
@@ -37,7 +37,7 @@ void DialogueSystem::onUpdate(World& world, double dt)
         // --- 轮询响应 ---
         if (m_waitingForResponse)
         {
-        auto response = m_aiClient.sendAndPoll();
+        auto response = m_aiClient.pollResponse();
         if (response.has_value())
         {
             const auto& resp = *response;
