@@ -207,8 +207,9 @@ bool Engine::initECS()
         return false;
     }
 
-    // 4. UI 渲染器 + 字体
+    // 4. UI 渲染器 + 字体 + 数据绑定
     m_impl->uiRenderer = std::make_unique<ui::UIRenderer>();
+    m_impl->uiRenderer->setEcsWorld(m_impl->ecsWorld.get());
     if (!m_impl->uiRenderer->loadFont("C:/Windows/Fonts/consola.ttf", 22.0f))
     {
         spdlog::warn("Failed to load consola.ttf, trying arial.ttf...");

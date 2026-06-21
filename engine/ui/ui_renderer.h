@@ -11,6 +11,7 @@
 #pragma once
 
 #include "engine/ui/font.h"
+#include "engine/ui/data_binding.h"
 
 #include <memory>
 #include <string>
@@ -37,6 +38,9 @@ public:
     // 加载字体
     bool loadFont(const std::string& ttfPath, float pixelHeight = 24.0f);
 
+    // 设置 ECS World（用于数据绑定）
+    void setEcsWorld(engine::ecs::World* world);
+
     // 每帧更新
     void update(float dt);
 
@@ -54,9 +58,11 @@ public:
 private:
     void renderBackgroundWidgets(Widget* w, render::SpriteRenderer& sr);
     void renderTextWidgets(Widget* w, render::SpriteRenderer& sr);
+    void resolveBindings(Widget* w);
 
     std::unique_ptr<Widget> m_root;
     std::shared_ptr<Font>   m_font;
+    BindingContext          m_bindingContext;
 };
 
 } // namespace engine::ui

@@ -50,6 +50,7 @@ set(ENGINE_RENDER_SOURCES
 set(ENGINE_UI_SOURCES
     ui/widget.cpp
     ui/font.cpp
+    ui/data_binding.cpp
     ui/ui_renderer.cpp
     ui/widgets/panel.cpp
     ui/widgets/button.cpp

@@ -46,9 +46,24 @@ void main()
 Text::Text(const std::string& id) : Widget(id) {}
 
 static std::shared_ptr<Font> s_defaultFont;
+static BindingContext* s_bindingContext = nullptr;
 
 void Text::setDefaultFont(std::shared_ptr<Font> font) { s_defaultFont = std::move(font); }
 std::shared_ptr<Font> Text::defaultFont() { return s_defaultFont; }
+
+void Text::resolveBinding(const BindingContext& ctx)
+{
+    if (m_hasBinding)
+    {
+        m_text = ctx.resolve(m_binding);
+    }
+}
+
+void Text::update(float dt)
+{
+    Widget::update(dt);
+    // 不在这里解析绑定，由 UIRenderer 统一处理
+}
 
 bool Text::initShader()
 {
@@ -184,6 +199,12 @@ std::unique_ptr<Widget> Text::fromJson(const nlohmann::json& j)
             j["color"][2].get<float>() / 255.0f,
             1.0f
         };
+    }
+    // 数据绑定
+    if (j.contains("binding"))
+    {
+        t->m_binding = Binding::fromJson(j["binding"]);
+        t->m_hasBinding = true;
     }
     return t;
 }

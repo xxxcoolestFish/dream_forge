@@ -1,9 +1,8 @@
 {
   "type": "FlexLayout",
   "id": "root",
-  "rect": [10, 10, 300, 180],
+  "rect": [10, 10, 300, 200],
   "direction": "vertical",
-  "justify": "start",
   "gap": 4,
   "padding": 8,
   "children": [
@@ -19,13 +18,36 @@
       "color": [220, 220, 255]
     },
     {
+      "type": "Text",
+      "id": "hp_display",
+      "text": "HP: 100",
+      "color": [255, 200, 100],
+      "binding": {
+        "target": "text",
+        "source": "ecs",
+        "path": "Player.hp",
+        "format": "HP: {:.0f}"
+      }
+    },
+    {
+      "type": "Text",
+      "id": "pos_display",
+      "text": "Pos: (0, 0)",
+      "color": [180, 180, 220],
+      "binding": {
+        "target": "text",
+        "source": "ecs",
+        "path": "Player.pos_x",
+        "format": "X: {:.0f}"
+      }
+    },
+    {
       "type": "FlexLayout",
       "id": "button_row",
       "direction": "horizontal",
       "justify": "space-between",
       "gap": 8,
       "padding": 0,
-      "rect": [0, 0, 284, 40],
       "children": [
         {
           "type": "Button",

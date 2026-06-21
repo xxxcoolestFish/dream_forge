@@ -90,9 +90,26 @@ bool UIRenderer::loadFont(const std::string& ttfPath, float pixelHeight)
     return false;
 }
 
+void UIRenderer::setEcsWorld(engine::ecs::World* world)
+{
+    m_bindingContext.setEcsWorld(world);
+}
+
 void UIRenderer::update(float dt)
 {
-    if (m_root) m_root->update(dt);
+    if (m_root)
+    {
+        m_root->update(dt);
+        resolveBindings(m_root.get());
+    }
+}
+
+void UIRenderer::resolveBindings(Widget* w)
+{
+    if (auto* text = dynamic_cast<Text*>(w))
+        text->resolveBinding(m_bindingContext);
+    for (auto& child : w->children())
+        resolveBindings(child.get());
 }
 
 void UIRenderer::render(render::SpriteRenderer& spriteRenderer,
