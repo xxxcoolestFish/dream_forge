@@ -15,6 +15,7 @@
 #include "engine/ai/ai_client.h"
 #include "engine/ecs/systems/movement_system.h"
 #include "engine/ecs/systems/dialogue_system.h"
+#include "engine/ecs/systems/interaction_system.h"
 #include "engine/input/input_system.h"
 
 #define GLFW_INCLUDE_NONE
@@ -39,6 +40,7 @@ struct Engine::Impl
     std::unique_ptr<ecs::World>             ecsWorld;
     std::unique_ptr<input::InputSystem>     inputSystem;
     std::unique_ptr<ai::AiClient>           aiClient;
+    std::unique_ptr<EventBus>               eventBus;
     std::unique_ptr<GameLoop>               gameLoop;
 
     // Phase 3: 场景渲染
@@ -165,7 +167,8 @@ bool Engine::initECS()
 {
     spdlog::info("[4/5] Initializing ECS World...");
 
-    // 0. 先创建 AI 客户端（DialogueSystem 依赖它）
+    // 0. 创建基础设施（EventBus, AiClient 等 System 依赖）
+    m_impl->eventBus = std::make_unique<EventBus>();
     m_impl->aiClient = std::make_unique<ai::AiClient>();
     if (m_impl->aiClient->connect())
     {
@@ -179,15 +182,18 @@ bool Engine::initECS()
     // 1. 创建 ECS World
     m_impl->ecsWorld = std::make_unique<ecs::World>();
 
-    // 2. 注册 System（DialogueSystem 引用 AiClient，必须先创建 AiClient）
+    // 2. 注册 System
     m_impl->ecsWorld->registerSystem(
         std::make_unique<ecs::MovementSystem>(*m_impl->inputSystem)
     );
     m_impl->ecsWorld->registerSystem(
-        std::make_unique<ecs::DialogueSystem>(*m_impl->inputSystem, *m_impl->aiClient)
+        std::make_unique<ecs::InteractionSystem>(*m_impl->inputSystem, *m_impl->eventBus)
+    );
+    m_impl->ecsWorld->registerSystem(
+        std::make_unique<ecs::DialogueSystem>(*m_impl->aiClient, *m_impl->eventBus)
     );
 
-    spdlog::info("  ECS World initialized with {} system(s).", 2);
+    spdlog::info("  ECS World initialized with {} system(s).", 3);
 
     // 3. 精灵渲染器
     m_impl->spriteRenderer = std::make_unique<render::SpriteRenderer>();
@@ -388,6 +394,11 @@ ecs::World* Engine::ecsWorld() const
 input::InputSystem* Engine::inputSystem() const
 {
     return m_impl->inputSystem.get();
+}
+
+EventBus* Engine::eventBus() const
+{
+    return m_impl->eventBus.get();
 }
 
 bool Engine::loadScene(const std::string& path)

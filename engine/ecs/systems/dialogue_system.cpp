@@ -1,31 +1,52 @@
 /**
  * @file engine/ecs/systems/dialogue_system.cpp
- * @brief E 键触发 NPC 对话，LLM 实时生成回复
+ * @brief 对话系统 — EventBus 驱动
  */
 
 #include "engine/ecs/systems/dialogue_system.h"
 #include "engine/ecs/world.h"
 #include "engine/ecs/component_types.h"
-#include "engine/input/input_system.h"
 #include "engine/ai/ai_client.h"
 
-#include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
-#include <glm/glm.hpp>
 #include <nlohmann/json.hpp>
-#include <cmath>
 
 namespace engine::ecs {
 
-DialogueSystem::DialogueSystem(input::InputSystem& input, ai::AiClient& aiClient)
-    : System("DialogueSystem")
-    , m_input(input)
-    , m_aiClient(aiClient)
+// 与 InteractionSystem 使用相同的事件 ID
+static constexpr EventTypeId kInteractionEvent = ENGINE_EVENT("Interaction");
+
+struct InteractionData
 {
+    Entity      sourceEntity;
+    Entity      targetEntity;
+    std::string type;
+};
+
+DialogueSystem::DialogueSystem(ai::AiClient& aiClient, EventBus& eventBus)
+    : System("DialogueSystem")
+    , m_aiClient(aiClient)
+    , m_eventBus(eventBus)
+{
+}
+
+void DialogueSystem::onInit(World& world)
+{
+    m_world = &world;
+
+    // 订阅交互事件
+    m_subscriptionId = m_eventBus.subscribe(kInteractionEvent,
+        [this](const Event& event) {
+            onInteraction(event);
+        });
+
+    spdlog::debug("DialogueSystem subscribed to InteractionEvent (id={})", m_subscriptionId);
 }
 
 void DialogueSystem::onUpdate(World& world, double dt)
 {
+    (void)world;
+
     // --- 轮询 AI 响应 ---
     if (m_waitingForResponse)
     {
@@ -39,6 +60,7 @@ void DialogueSystem::onUpdate(World& world, double dt)
             {
                 spdlog::warn("AI 服务未响应。请确保 AI 服务已启动。");
                 m_waitingForResponse = false;
+                m_responseTimer = 0.0;
                 return;
             }
 
@@ -66,58 +88,39 @@ void DialogueSystem::onUpdate(World& world, double dt)
         }
         else if (m_responseTimer > 5.0)
         {
-            // 5 秒后每秒提示一次
             spdlog::info("  等待 AI 服务响应中... ({}s)", static_cast<int>(m_responseTimer));
-            m_responseTimer = 0.0; // 重置，下个 5 秒再提示
+            m_responseTimer = 0.0;
         }
-        return;
     }
+}
 
-    // --- 检测 E 键 ---
-    if (!m_input.isKeyPressed(GLFW_KEY_E)) return;
+void DialogueSystem::onInteraction(const Event& event)
+{
+    if (m_waitingForResponse) return; // 正在等待上一个回复
 
-    // --- 找到玩家 ---
-    auto playerView = world.view<Transform, Player>();
-    if (playerView.begin() == playerView.end()) return;
+    const auto* data = std::any_cast<InteractionData>(&event.data);
+    if (!data) return;
 
-    auto playerEntity = *playerView.begin();
-    auto& playerTransform = world.getComponent<Transform>(playerEntity);
+    // 只处理 "talk" 类型的交互
+    if (data->type != "talk") return;
 
-    // --- 找最近的 NPC（100 像素内） ---
-    Entity nearestNpc = kNullEntity;
-    float   nearestDist = 100.0f;
+    // 获取 NPC 的 DialogueSpeaker 组件
+    if (!m_world || !m_world->isValid(data->targetEntity)) return;
+    if (!m_world->hasComponent<DialogueSpeaker>(data->targetEntity)) return;
 
-    auto npcView = world.view<Transform, DialogueSpeaker>();
-    for (auto entity : npcView)
-    {
-        if (entity == playerEntity) continue;
-        auto& t = world.getComponent<Transform>(entity);
-        float dx = t.position.x - playerTransform.position.x;
-        float dy = t.position.y - playerTransform.position.y;
-        float dist = std::sqrt(dx * dx + dy * dy);
-        if (dist < nearestDist) { nearestDist = dist; nearestNpc = entity; }
-    }
+    auto& speaker = m_world->getComponent<DialogueSpeaker>(data->targetEntity);
+    m_pendingNpcName = speaker.characterId;
 
-    if (nearestNpc == kNullEntity)
-    {
-        spdlog::info("附近没有可以对话的 NPC。");
-        return;
-    }
-
-    // --- 构建请求 ---
-    auto& npcSpeaker = world.getComponent<DialogueSpeaker>(nearestNpc);
-    m_pendingNpcName = npcSpeaker.characterId;
-
+    // 构建 LLM 请求
     nlohmann::json request;
     request["type"] = "llm_dialogue";
-    request["payload"]["npc"]["name"] = npcSpeaker.characterId;
-    request["payload"]["npc"]["personality"] = npcSpeaker.personalityPrompt;
+    request["payload"]["npc"]["name"] = speaker.characterId;
+    request["payload"]["npc"]["personality"] = speaker.personalityPrompt;
     request["payload"]["npc"]["background"] = "这个世界的一位居民。";
     request["payload"]["player"]["hp"] = 100;
     request["payload"]["player"]["level"] = 1;
     request["payload"]["history"] = nlohmann::json::array();
 
-    // --- 发送 ---
     spdlog::info("与 {} 对话中...", m_pendingNpcName);
 
     if (m_aiClient.startRequest(request))

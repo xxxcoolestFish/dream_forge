@@ -59,12 +59,15 @@ int main(int argc, char* argv[])
     world->addComponent<engine::ecs::Transform>(npc);
     world->addComponent<engine::ecs::Sprite>(npc);
     world->addComponent<engine::ecs::DialogueSpeaker>(npc);
+    world->addComponent<engine::ecs::Interactive>(npc);
     auto& nt = world->getComponent<engine::ecs::Transform>(npc);
     nt.position = glm::vec3(500.0f, 420.0f, 0.0f);
     world->getComponent<engine::ecs::Sprite>(npc).tint = glm::vec4(1.0f, 0.4f, 0.3f, 1.0f);
     auto& ns = world->getComponent<engine::ecs::DialogueSpeaker>(npc);
     ns.characterId = "老陈";
     ns.personalityPrompt = "暴躁但善良的老铁匠";
+    auto& ni = world->getComponent<engine::ecs::Interactive>(npc);
+    ni.interactionType = "talk";
 
     // --- Phase 3: 加载场景 ---
     if (!engine.loadScene("assets/scenes/test/parallax_test.scene"))
