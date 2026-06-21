@@ -16,6 +16,7 @@
 #include "engine/ai/ai_client.h"
 #include "engine/ecs/systems/movement_system.h"
 #include "engine/ecs/systems/dialogue_system.h"
+#include "engine/ecs/systems/dialogue_ui_system.h"
 #include "engine/ecs/systems/interaction_system.h"
 #include "engine/input/input_system.h"
 #include "engine/script/script_engine.h"
@@ -63,6 +64,7 @@ struct Engine::Impl
     std::unique_ptr<narrative::QuestManager>  questManager;
     std::unique_ptr<narrative::StoryFlags>   storyFlags;
     std::unique_ptr<narrative::ConditionEvaluator> conditionEval;
+    std::unique_ptr<ecs::DialogueUISystem>   dialogueUI;
 };
 
 // =========================================================================
@@ -228,6 +230,11 @@ bool Engine::initECS()
         m_impl->uiRenderer->loadFont("C:/Windows/Fonts/arial.ttf", 20.0f);
     }
 
+    // 4b. 对话 UI 系统（UI 渲染器之后，订阅对话事件）
+    m_impl->dialogueUI = std::make_unique<ecs::DialogueUISystem>(
+        *m_impl->eventBus,
+        *m_impl->uiRenderer);
+
     // 5. 叙事系统（ScriptEngine 之前，脚本需要绑定叙事 API）
     m_impl->questManager = std::make_unique<narrative::QuestManager>(
         m_impl->ecsWorld.get(),
@@ -386,6 +393,12 @@ void Engine::run()
             // --- 逻辑更新 ---
             world.updateSystems(dt);
 
+            // --- 对话 UI 更新（键盘输入处理） ---
+            if (m_impl->dialogueUI && m_impl->inputSystem)
+            {
+                m_impl->dialogueUI->update(m_impl->inputSystem.get());
+            }
+
             // --- 渲染 ---
             render.beginFrame();
 
@@ -473,6 +486,7 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
+    m_impl->dialogueUI.reset();
     m_impl->conditionEval.reset();
     m_impl->storyFlags.reset();
     m_impl->questManager.reset();

@@ -33,6 +33,7 @@ set(ENGINE_ECS_SOURCES
     ecs/systems/movement_system.cpp
     ecs/systems/interaction_system.cpp
     ecs/systems/dialogue_system.cpp
+    ecs/systems/dialogue_ui_system.cpp
 )
 
 # --- Phase 1: render ---

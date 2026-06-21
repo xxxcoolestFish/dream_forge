@@ -59,6 +59,7 @@ public:
     Widget* parent() const { return m_parent; }
     void addChild(std::unique_ptr<Widget> child);
     const std::vector<std::unique_ptr<Widget>>& children() const { return m_children; }
+    std::vector<std::unique_ptr<Widget>>& children() { return m_children; }
 
     // --- 标识 ---
     const std::string& id() const { return m_id; }
