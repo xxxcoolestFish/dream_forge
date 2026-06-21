@@ -1,9 +1,10 @@
 {
-  "type": "BoxLayout",
+  "type": "FlexLayout",
   "id": "root",
-  "rect": [10, 10, 300, 160],
+  "rect": [10, 10, 300, 180],
   "direction": "vertical",
-  "spacing": 4,
+  "justify": "start",
+  "gap": 4,
   "padding": 8,
   "children": [
     {
@@ -18,16 +19,29 @@
       "color": [220, 220, 255]
     },
     {
-      "type": "Button",
-      "id": "btn_talk",
-      "text": "与老陈对话 (E)",
-      "color": [55, 75, 110, 255]
-    },
-    {
-      "type": "Button",
-      "id": "btn_exit",
-      "text": "退出游戏 (ESC)",
-      "color": [110, 55, 55, 255]
+      "type": "FlexLayout",
+      "id": "button_row",
+      "direction": "horizontal",
+      "justify": "space-between",
+      "gap": 8,
+      "padding": 0,
+      "rect": [0, 0, 284, 40],
+      "children": [
+        {
+          "type": "Button",
+          "id": "btn_talk",
+          "text": "对话 (E)",
+          "color": [55, 75, 110, 255],
+          "grow": 1
+        },
+        {
+          "type": "Button",
+          "id": "btn_exit",
+          "text": "退出",
+          "color": [110, 55, 55, 255],
+          "grow": 1
+        }
+      ]
     }
   ]
 }

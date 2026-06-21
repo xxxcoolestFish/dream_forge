@@ -8,6 +8,7 @@
 #include "engine/ui/widgets/panel.h"
 #include "engine/ui/widgets/button.h"
 #include "engine/ui/widgets/box_layout.h"
+#include "engine/ui/widgets/flex_layout.h"
 #include "engine/ui/widgets/text.h"
 #include "engine/render/sprite.h"
 #include <typeinfo>
@@ -109,10 +110,14 @@ void UIRenderer::render(render::SpriteRenderer& spriteRenderer,
 
 void UIRenderer::renderBackgroundWidgets(Widget* w, render::SpriteRenderer& sr)
 {
-    // Text 控件跳过（留到第二遍）
     if (dynamic_cast<Text*>(w)) return;
 
-    w->render(sr); // Panel/Button 调用 submit
+    // 对于叶子控件（Panel/Button），调用 render 提交精灵
+    // 对于容器控件（FlexLayout/BoxLayout），只递归不调用 render
+    bool isContainer = (dynamic_cast<FlexLayout*>(w) || dynamic_cast<BoxLayout*>(w));
+    if (!isContainer)
+        w->render(sr);
+
     for (auto& child : w->children())
         renderBackgroundWidgets(child.get(), sr);
 }

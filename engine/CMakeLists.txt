@@ -55,6 +55,7 @@ set(ENGINE_UI_SOURCES
     ui/widgets/button.cpp
     ui/widgets/text.cpp
     ui/widgets/box_layout.cpp
+    ui/widgets/flex_layout.cpp
 )
 
 # --- Phase 3: scene ---
