@@ -23,6 +23,7 @@
 
 namespace engine::ai { class AiClient; }
 namespace engine::ecs { class World; }
+namespace engine::narrative { class ConditionEvaluator; }
 
 namespace engine::ecs {
 
@@ -37,6 +38,12 @@ public:
 
     // 加载对话树文件目录
     bool loadTrees(const std::string& directory);
+
+    // 设置条件求值器（5.5 集成，用于对话树条件节点）
+    void setConditionEvaluator(narrative::ConditionEvaluator* eval)
+    {
+        m_conditionEval = eval;
+    }
 
 private:
     ai::AiClient& m_aiClient;
@@ -55,6 +62,9 @@ private:
     std::string m_pendingNpcName;
     Entity      m_pendingNpcEntity = kNullEntity;
     double      m_aiTimer         = 0.0;
+
+    // --- 条件求值器 ---
+    narrative::ConditionEvaluator* m_conditionEval = nullptr;
 
     // --- 事件处理 ---
     void onInteraction(const Event& event);

@@ -20,6 +20,8 @@
 #include "engine/input/input_system.h"
 #include "engine/script/script_engine.h"
 #include "engine/narrative/quest_manager.h"
+#include "engine/narrative/story_flags.h"
+#include "engine/narrative/condition_evaluator.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -58,7 +60,9 @@ struct Engine::Impl
     std::unique_ptr<script::ScriptEngine> scriptEngine;
 
     // Phase 5: 叙事系统
-    std::unique_ptr<narrative::QuestManager> questManager;
+    std::unique_ptr<narrative::QuestManager>  questManager;
+    std::unique_ptr<narrative::StoryFlags>   storyFlags;
+    std::unique_ptr<narrative::ConditionEvaluator> conditionEval;
 };
 
 // =========================================================================
@@ -201,9 +205,9 @@ bool Engine::initECS()
     m_impl->ecsWorld->registerSystem(
         std::make_unique<ecs::InteractionSystem>(*m_impl->inputSystem, *m_impl->eventBus)
     );
-    m_impl->ecsWorld->registerSystem(
-        std::make_unique<ecs::DialogueSystem>(*m_impl->aiClient, *m_impl->eventBus)
-    );
+    auto dialogueSys = std::make_unique<ecs::DialogueSystem>(*m_impl->aiClient, *m_impl->eventBus);
+    ecs::DialogueSystem* dialogueSysPtr = dialogueSys.get();
+    m_impl->ecsWorld->registerSystem(std::move(dialogueSys));
 
     spdlog::info("  ECS World initialized with {} system(s).", 3);
 
@@ -224,11 +228,36 @@ bool Engine::initECS()
         m_impl->uiRenderer->loadFont("C:/Windows/Fonts/arial.ttf", 20.0f);
     }
 
-    // 5. 任务管理器（ScriptEngine 之前创建，因为脚本需要绑定 Quest API）
+    // 5. 叙事系统（ScriptEngine 之前，脚本需要绑定叙事 API）
     m_impl->questManager = std::make_unique<narrative::QuestManager>(
         m_impl->ecsWorld.get(),
         m_impl->eventBus.get());
     m_impl->questManager->loadDefinitions("assets/quests/");
+
+    m_impl->storyFlags = std::make_unique<narrative::StoryFlags>();
+
+    // 创建条件求值器，连接 StoryFlags 和 QuestManager 作为数据源
+    m_impl->conditionEval = std::make_unique<narrative::ConditionEvaluator>();
+    m_impl->conditionEval->setFlagQuery(
+        [flags = m_impl->storyFlags.get()](const std::string& key, bool& out) {
+            if (!flags->has(key)) return false;
+            out = flags->getBool(key);
+            return true;
+        });
+    m_impl->conditionEval->setQuestQuery(
+        [qm = m_impl->questManager.get()](const std::string& questId, std::string& out) {
+            // 通过 QuestManager 检查任务状态（查找活跃/已完成任务）
+            // 简化：检查是否有该 questId 的定义
+            if (qm->getDefinition(questId))
+            {
+                out = "completed"; // 后续完善状态查询
+                return true;
+            }
+            return false;
+        });
+
+    // 将条件求值器注入 DialogueSystem
+    dialogueSysPtr->setConditionEvaluator(m_impl->conditionEval.get());
 
     // 6. 脚本引擎
     m_impl->scriptEngine = std::make_unique<script::ScriptEngine>();
@@ -237,6 +266,23 @@ bool Engine::initECS()
         m_impl->eventBus.get(),
         m_impl->inputSystem.get(),
         m_impl->questManager.get());
+
+    // 注册剧情标记绑定（StoryFlags 在 init 之后才创建，手动注入）
+    {
+        sol::table narr = m_impl->scriptEngine->luaState()["narrative"];
+        narr.set_function("setFlag",
+            [sf = m_impl->storyFlags.get()](const std::string& key, bool val) {
+                sf->setBool(key, val);
+            });
+        narr.set_function("getFlag",
+            [sf = m_impl->storyFlags.get()](const std::string& key) -> bool {
+                return sf->getBool(key, false);
+            });
+        narr.set_function("hasFlag",
+            [sf = m_impl->storyFlags.get()](const std::string& key) -> bool {
+                return sf->has(key);
+            });
+    }
 
     return true;
 }
@@ -427,6 +473,8 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
+    m_impl->conditionEval.reset();
+    m_impl->storyFlags.reset();
     m_impl->questManager.reset();
     m_impl->scriptEngine->shutdown();
     m_impl->scriptEngine.reset();

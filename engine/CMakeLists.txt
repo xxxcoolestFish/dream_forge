@@ -91,8 +91,8 @@ set(ENGINE_SCRIPT_SOURCES
 set(ENGINE_NARRATIVE_SOURCES
     narrative/dialogue_tree.cpp
     narrative/quest_manager.cpp
-    # story_flags.cpp         # 5.5
-    # condition_evaluator.cpp # 5.5
+    narrative/story_flags.cpp
+    narrative/condition_evaluator.cpp
 )
 
 # -----------------------------------------------------------------------------

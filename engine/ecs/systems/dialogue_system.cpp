@@ -5,6 +5,7 @@
 
 #include "engine/ecs/systems/dialogue_system.h"
 #include "engine/ecs/world.h"
+#include "engine/narrative/condition_evaluator.h"
 #include "engine/ecs/component_types.h"
 #include "engine/ai/ai_client.h"
 
@@ -411,23 +412,25 @@ void DialogueSystem::evaluateNode(World& world, Entity npcEntity)
         cd.optionTexts.reserve(node->options.size());
         for (const auto& opt : node->options)
         {
-            // 检查选项条件（仅检查 DialogueState.flags 中的本地标记）
+            // 检查选项条件（使用 ConditionEvaluator，回退到本地 flags）
             bool visible = true;
             if (!opt.condition.empty())
             {
-                // 简单条件检查：查找 "flag:key" 模式
-                // 完整条件求值器将在 5.5 集成
-                auto eqPos = opt.condition.find("==");
-                if (eqPos != std::string::npos)
+                if (m_conditionEval)
+                    visible = m_conditionEval->evaluate(opt.condition);
+                else
                 {
-                    std::string left = opt.condition.substr(0, eqPos);
-                    // 去除空格
-                    while (!left.empty() && left.back() == ' ') left.pop_back();
-                    if (left.find("flag:") == 0)
+                    // 回退：简单 flag: 检查
+                    auto eqPos = opt.condition.find("==");
+                    if (eqPos != std::string::npos)
                     {
-                        std::string flagKey = left.substr(5);
-                        auto flagIt = ds.flags.find(flagKey);
-                        visible = (flagIt != ds.flags.end() && flagIt->second);
+                        std::string left = opt.condition.substr(0, eqPos);
+                        while (!left.empty() && left.back() == ' ') left.pop_back();
+                        if (left.find("flag:") == 0)
+                        {
+                            auto flagIt = ds.flags.find(left.substr(5));
+                            visible = (flagIt != ds.flags.end() && flagIt->second);
+                        }
                     }
                 }
             }
@@ -445,23 +448,28 @@ void DialogueSystem::evaluateNode(World& world, Entity npcEntity)
     // =====================================================================
     case narrative::DialogueNodeType::Condition:
     {
-        // 简单条件求值（5.5 集成 ConditionEvaluator 后替换此段）
+        // 使用 ConditionEvaluator 求值条件表达式
         bool result = false;
-        const auto& expr = node->conditionExpr;
-        auto eqPos = expr.find("==");
-        if (eqPos != std::string::npos)
+        if (m_conditionEval)
         {
-            std::string left = expr.substr(0, eqPos);
-            while (!left.empty() && left.back() == ' ') left.pop_back();
-            std::string right = expr.substr(eqPos + 2);
-            while (!right.empty() && right.front() == ' ') right.erase(0, 1);
-
-            if (left.find("flag:") == 0)
+            result = m_conditionEval->evaluate(node->conditionExpr);
+        }
+        else
+        {
+            // 回退：简单 flag:key == bool 检查
+            const auto& expr = node->conditionExpr;
+            auto eqPos = expr.find("==");
+            if (eqPos != std::string::npos)
             {
-                std::string flagKey = left.substr(5);
-                bool flagVal = (right == "true");
-                auto flagIt = ds.flags.find(flagKey);
-                result = (flagIt != ds.flags.end() && flagIt->second == flagVal);
+                std::string left = expr.substr(0, eqPos);
+                while (!left.empty() && left.back() == ' ') left.pop_back();
+                std::string right = expr.substr(eqPos + 2);
+                while (!right.empty() && right.front() == ' ') right.erase(0, 1);
+                if (left.find("flag:") == 0)
+                {
+                    auto flagIt = ds.flags.find(left.substr(5));
+                    result = (flagIt != ds.flags.end() && flagIt->second == (right == "true"));
+                }
             }
         }
 
