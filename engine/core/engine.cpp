@@ -156,10 +156,21 @@ bool Engine::initECS()
 {
     spdlog::info("[4/5] Initializing ECS World...");
 
-    // 创建 ECS World
+    // 0. 先创建 AI 客户端（DialogueSystem 依赖它）
+    m_impl->aiClient = std::make_unique<ai::AiClient>();
+    if (m_impl->aiClient->connect())
+    {
+        spdlog::info("  AI client connected to Python service.");
+    }
+    else
+    {
+        spdlog::warn("  AI client not connected (Python service not running).");
+    }
+
+    // 1. 创建 ECS World
     m_impl->ecsWorld = std::make_unique<ecs::World>();
 
-    // 注册 System（按依赖顺序）
+    // 2. 注册 System（DialogueSystem 引用 AiClient，必须先创建 AiClient）
     m_impl->ecsWorld->registerSystem(
         std::make_unique<ecs::MovementSystem>(*m_impl->inputSystem)
     );
@@ -169,23 +180,12 @@ bool Engine::initECS()
 
     spdlog::info("  ECS World initialized with {} system(s).", 2);
 
-    // 精灵渲染器
+    // 3. 精灵渲染器
     m_impl->spriteRenderer = std::make_unique<render::SpriteRenderer>();
     if (!m_impl->spriteRenderer->init())
     {
         spdlog::critical("Failed to initialize sprite renderer");
         return false;
-    }
-
-    // AI 客户端（连接 Python 服务，可选）
-    m_impl->aiClient = std::make_unique<ai::AiClient>();
-    if (m_impl->aiClient->connect())
-    {
-        spdlog::info("  AI client connected to Python service.");
-    }
-    else
-    {
-        spdlog::warn("  AI client not connected (Python service not running).");
     }
 
     return true;
