@@ -10,6 +10,7 @@
 #include "engine/ecs/world.h"
 #include "engine/ai/ai_client.h"
 #include "engine/ecs/systems/movement_system.h"
+#include "engine/ecs/systems/dialogue_system.h"
 #include "engine/input/input_system.h"
 
 #define GLFW_INCLUDE_NONE
@@ -161,8 +162,11 @@ bool Engine::initECS()
     m_impl->ecsWorld->registerSystem(
         std::make_unique<ecs::MovementSystem>(*m_impl->inputSystem)
     );
+    m_impl->ecsWorld->registerSystem(
+        std::make_unique<ecs::DialogueSystem>(*m_impl->inputSystem, *m_impl->aiClient)
+    );
 
-    spdlog::info("  ECS World initialized with {} system(s).", 1);
+    spdlog::info("  ECS World initialized with {} system(s).", 2);
 
     // 精灵渲染器
     m_impl->spriteRenderer = std::make_unique<render::SpriteRenderer>();

@@ -60,16 +60,21 @@ int main(int argc, char* argv[])
         playerTransform.position.x,
         playerTransform.position.y);
 
-    // 创建 NPC Entity
+    // 创建 NPC Entity（挂 DialogueSpeaker，可按 E 对话）
     auto npc = world->createEntity();
     world->addComponent<engine::ecs::Transform>(npc);
     world->addComponent<engine::ecs::Sprite>(npc);
+    world->addComponent<engine::ecs::DialogueSpeaker>(npc);
     auto& npcTransform = world->getComponent<engine::ecs::Transform>(npc);
     npcTransform.position = glm::vec3(400.0f, 200.0f, 0.0f);
     auto& npcSprite = world->getComponent<engine::ecs::Sprite>(npc);
     npcSprite.tint = glm::vec4(1.0f, 0.4f, 0.3f, 1.0f); // 红色
+    auto& npcSpeaker = world->getComponent<engine::ecs::DialogueSpeaker>(npc);
+    npcSpeaker.characterId = "老陈";
+    npcSpeaker.personalityPrompt = "暴躁但善良的老铁匠，年轻时是冒险者";
 
-    spdlog::info("NPC entity created (id={}): pos=({:.0f}, {:.0f}), color=red",
+    spdlog::info("NPC '{}' created (id={}): pos=({:.0f}, {:.0f}), press E to talk",
+        npcSpeaker.characterId,
         static_cast<uint32_t>(npc),
         npcTransform.position.x,
         npcTransform.position.y);
