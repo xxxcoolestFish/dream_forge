@@ -43,6 +43,7 @@ if(MSVC)
     )
     # 将特定警告降级（第三方库引发的）
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4201") # nameless struct/union (EnTT使用)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd5321") # 多字节UTF-8字符 (sol2注释中的emoji)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -122,6 +123,12 @@ FetchContent_Declare(stb
     GIT_PROGRESS ON
 )
 FetchContent_MakeAvailable(stb)
+
+# --- Lua 5.4（脚本引擎，静态库） ---
+include(cmake/Lua54.cmake)
+
+# --- sol2（Lua C++ 绑定，header-only） ---
+include(cmake/sol2.cmake)
 
 # --- ZeroMQ（C++ ↔ Python IPC 通信） ---
 # libzmq: C 库；cppzmq: C++ 头文件封装

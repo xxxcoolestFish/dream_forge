@@ -81,6 +81,16 @@ set(ENGINE_AI_SOURCES
     ai/ai_client.cpp
 )
 
+# --- Phase 5: script (Lua 脚本引擎) ---
+set(ENGINE_SCRIPT_SOURCES
+    # 文件在 5.2 中添加
+)
+
+# --- Phase 5: narrative (叙事系统) ---
+set(ENGINE_NARRATIVE_SOURCES
+    # 文件在 5.3-5.5 中添加
+)
+
 # -----------------------------------------------------------------------------
 # 库声明
 # -----------------------------------------------------------------------------
@@ -93,6 +103,8 @@ add_library(engine STATIC
     ${ENGINE_INPUT_SOURCES}
     ${ENGINE_RESOURCE_SOURCES}
     ${ENGINE_AI_SOURCES}
+    ${ENGINE_SCRIPT_SOURCES}
+    ${ENGINE_NARRATIVE_SOURCES}
 )
 
 # 输出目录统一
@@ -112,6 +124,7 @@ target_link_libraries(engine PUBLIC
     OpenGL::GL
     libzmq
     cppzmq
+    lua54
 )
 
 # 引擎需要 GLFW 头文件公开暴露（输入系统中引用 GLFW 类型）
@@ -125,6 +138,8 @@ target_include_directories(engine PUBLIC
     ${stb_SOURCE_DIR}
     ${libzmq_SOURCE_DIR}/include
     ${cppzmq_SOURCE_DIR}
+    ${lua_SOURCE_DIR}
+    ${sol2_SOURCE_DIR}/include
 )
 
 # -----------------------------------------------------------------------------

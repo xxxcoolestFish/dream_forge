@@ -29,8 +29,7 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Dependencies (fetched by CMake)
-third_party/
+# Dependencies (fetched by CMake — 但 third_party/ 中手动 vendor 的库需要提交)
 _build/
 
 # Generated assets
