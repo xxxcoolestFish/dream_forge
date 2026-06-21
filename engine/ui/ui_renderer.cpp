@@ -10,6 +10,7 @@
 #include "engine/ui/widgets/box_layout.h"
 #include "engine/ui/widgets/text.h"
 #include "engine/render/sprite.h"
+#include <typeinfo>
 
 #include <spdlog/spdlog.h>
 #include <fstream>
@@ -95,7 +96,33 @@ void UIRenderer::update(float dt)
 
 void UIRenderer::render(render::SpriteRenderer& spriteRenderer)
 {
-    if (m_root) m_root->render(spriteRenderer);
+    if (!m_root) return;
+
+    // 第1遍：渲染所有 Panel/Button（背景层）→ 提交到队列
+    renderBackgroundWidgets(m_root.get(), spriteRenderer);
+    // 刷新背景
+    spriteRenderer.flush(1280, 720); // TODO: 从engine获取屏幕尺寸
+
+    // 第2遍：渲染所有 Text（文字层）→ 直接 OpenGL 绘制
+    renderTextWidgets(m_root.get(), spriteRenderer);
+}
+
+void UIRenderer::renderBackgroundWidgets(Widget* w, render::SpriteRenderer& sr)
+{
+    // Text 控件跳过（留到第二遍）
+    if (dynamic_cast<Text*>(w)) return;
+
+    w->render(sr); // Panel/Button 调用 submit
+    for (auto& child : w->children())
+        renderBackgroundWidgets(child.get(), sr);
+}
+
+void UIRenderer::renderTextWidgets(Widget* w, render::SpriteRenderer& sr)
+{
+    if (auto* text = dynamic_cast<Text*>(w))
+        text->render(sr); // Text 直接 OpenGL 绘制
+    for (auto& child : w->children())
+        renderTextWidgets(child.get(), sr);
 }
 
 void UIRenderer::onMouseDown(float x, float y)

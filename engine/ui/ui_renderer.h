@@ -51,6 +51,9 @@ public:
     Widget* root() const { return m_root.get(); }
 
 private:
+    void renderBackgroundWidgets(Widget* w, render::SpriteRenderer& sr);
+    void renderTextWidgets(Widget* w, render::SpriteRenderer& sr);
+
     std::unique_ptr<Widget> m_root;
     std::shared_ptr<Font>   m_font;
 };
