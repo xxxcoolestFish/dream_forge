@@ -1,23 +1,30 @@
 /**
  * @file engine/render/sprite.h
- * @brief 2D 精灵渲染器 — 将 ECS 中 Sprite+Transform 渲染到屏幕
- *
- * Phase 1：简单彩色矩形渲染（无纹理），每个 Entity 一个 draw call。
- * 后续 Phase：批处理、纹理支持、深度排序。
+ * @brief 2D 精灵渲染器 — ECS 批量渲染 + 独立精灵提交
  */
 
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include <glm/glm.hpp>
 
 namespace engine::ecs {
     class World;
-    struct Transform;
-    struct Sprite;
 }
 
 namespace engine::render {
+
+// 独立精灵描述（用于场景渲染等非 ECS 场景）
+struct SpriteDesc
+{
+    uint16_t  textureHandle = UINT16_MAX;  // 纹理句柄（UINT16_MAX = 纯色）
+    glm::vec2 position      { 0.0f, 0.0f };
+    glm::vec2 size          { 50.0f, 50.0f };
+    glm::vec4 tint          { 1.0f, 1.0f, 1.0f, 1.0f };
+    float     rotation      = 0.0f;        // 弧度
+    float     depth         = 0.5f;        // 0=远景, 1=前景
+};
 
 class SpriteRenderer
 {
@@ -25,24 +32,34 @@ public:
     SpriteRenderer();
     ~SpriteRenderer();
 
-    // 初始化（编译着色器、创建 VAO/VBO）
     bool init();
-
-    // 关闭
     void shutdown();
 
-    // 每帧渲染所有可见精灵
+    // --- ECS 批量渲染 ---
     void render(const engine::ecs::World& world,
                 uint32_t screenWidth, uint32_t screenHeight);
 
+    // --- 独立精灵提交 ---
+    void submit(const SpriteDesc& desc);
+
+    // 提交所有精灵并绘制（如果已经通过 submit 提交了精灵）
+    void flush(uint32_t screenWidth, uint32_t screenHeight);
+
 private:
-    uint32_t m_vao        = 0;  // 顶点数组
-    uint32_t m_vbo        = 0;  // 顶点缓冲
-    uint32_t m_shaderProg = 0;  // 着色器程序
-    uint32_t m_uScreenSize = 0; // screen size uniform location
-    uint32_t m_uOffset     = 0; // position offset uniform
-    uint32_t m_uColor      = 0; // color uniform
-    bool     m_initialized = false;
+    void drawSprite(const SpriteDesc& desc,
+                    uint32_t screenWidth, uint32_t screenHeight);
+
+    uint32_t m_vao          = 0;
+    uint32_t m_vbo          = 0;
+    uint32_t m_shaderProg   = 0;
+    uint32_t m_uScreenSize  = 0;
+    uint32_t m_uOffset      = 0;
+    uint32_t m_uColor       = 0;
+    uint32_t m_uSizeLoc     = 0; // uSize uniform location
+    bool     m_initialized  = false;
+
+    // 提交队列
+    std::vector<SpriteDesc> m_submittedSprites;
 };
 
 } // namespace engine::render

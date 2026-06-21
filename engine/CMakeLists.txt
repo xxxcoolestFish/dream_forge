@@ -41,6 +41,15 @@ set(ENGINE_RENDER_SOURCES
     render/shader.cpp
     render/sprite.cpp
     render/texture.cpp
+    render/scene/camera.cpp
+    render/scene/scene_renderer.cpp
+)
+
+# --- Phase 3: scene ---
+set(ENGINE_SCENE_SOURCES
+    scene/layer.cpp
+    scene/scene.cpp
+    scene/scene_loader.cpp
 )
 
 # --- Phase 1: input ---
@@ -65,6 +74,7 @@ add_library(engine STATIC
     ${ENGINE_CORE_SOURCES}
     ${ENGINE_ECS_SOURCES}
     ${ENGINE_RENDER_SOURCES}
+    ${ENGINE_SCENE_SOURCES}
     ${ENGINE_INPUT_SOURCES}
     ${ENGINE_RESOURCE_SOURCES}
     ${ENGINE_AI_SOURCES}
