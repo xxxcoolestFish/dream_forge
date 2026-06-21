@@ -83,7 +83,8 @@ set(ENGINE_AI_SOURCES
 
 # --- Phase 5: script (Lua 脚本引擎) ---
 set(ENGINE_SCRIPT_SOURCES
-    # 文件在 5.2 中添加
+    script/script_engine.cpp
+    script/lua_bindings.cpp
 )
 
 # --- Phase 5: narrative (叙事系统) ---
@@ -151,5 +152,5 @@ target_compile_definitions(engine PRIVATE
 
 if(MSVC)
     # 引擎代码严格警告
-    target_compile_options(engine PRIVATE /W4)
+    target_compile_options(engine PRIVATE /W4 /bigobj)
 endif()

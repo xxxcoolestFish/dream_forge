@@ -27,6 +27,7 @@ struct GLFWwindow;
 
 namespace engine::ecs { class World; }
 namespace engine::input { class InputSystem; }
+namespace engine::script { class ScriptEngine; }
 
 namespace engine {
 
@@ -71,6 +72,12 @@ public:
 
     // Phase 4: 加载 UI 布局
     bool loadUI(const std::string& path);
+
+    // Phase 5: 加载并执行 Lua 脚本
+    bool loadScript(const std::string& path);
+
+    // Phase 5: 获取脚本引擎
+    class script::ScriptEngine* scriptEngine() const;
 
     // 请求退出
     void requestQuit();

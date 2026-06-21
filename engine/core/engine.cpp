@@ -18,6 +18,7 @@
 #include "engine/ecs/systems/dialogue_system.h"
 #include "engine/ecs/systems/interaction_system.h"
 #include "engine/input/input_system.h"
+#include "engine/script/script_engine.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -51,6 +52,9 @@ struct Engine::Impl
 
     // Phase 4: UI
     std::unique_ptr<ui::UIRenderer>  uiRenderer;
+
+    // Phase 5: 脚本
+    std::unique_ptr<script::ScriptEngine> scriptEngine;
 };
 
 // =========================================================================
@@ -216,6 +220,13 @@ bool Engine::initECS()
         m_impl->uiRenderer->loadFont("C:/Windows/Fonts/arial.ttf", 20.0f);
     }
 
+    // 5. 脚本引擎
+    m_impl->scriptEngine = std::make_unique<script::ScriptEngine>();
+    m_impl->scriptEngine->init(
+        m_impl->ecsWorld.get(),
+        m_impl->eventBus.get(),
+        m_impl->inputSystem.get());
+
     return true;
 }
 
@@ -301,6 +312,12 @@ void Engine::run()
                     if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_DOWN))  vRot += rotSpeed * 0.3f * static_cast<float>(dt);
                     cam.setRotation(cam.horizontalAngle() + hRot, cam.verticalAngle() + vRot);
                 }
+            }
+
+            // --- 脚本钩子（Lua onUpdate，在逻辑更新之前） ---
+            if (m_impl->scriptEngine)
+            {
+                m_impl->scriptEngine->onUpdate(dt);
             }
 
             // --- 逻辑更新 ---
@@ -393,7 +410,10 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
-m_impl->ecsWorld.reset();
+    m_impl->scriptEngine->shutdown();
+    m_impl->scriptEngine.reset();
+    m_impl->uiRenderer.reset();
+    m_impl->ecsWorld.reset();
     m_impl->aiClient->disconnect();
     m_impl->aiClient.reset();
     m_impl->spriteRenderer->shutdown();
@@ -466,6 +486,21 @@ bool Engine::loadUI(const std::string& path)
         return false;
     }
     return m_impl->uiRenderer->loadFromFile(path);
+}
+
+bool Engine::loadScript(const std::string& path)
+{
+    if (!m_impl->scriptEngine)
+    {
+        spdlog::error("Engine::loadScript: ScriptEngine not initialized");
+        return false;
+    }
+    return m_impl->scriptEngine->loadFile(path);
+}
+
+script::ScriptEngine* Engine::scriptEngine() const
+{
+    return m_impl->scriptEngine.get();
 }
 
 void Engine::requestQuit()
