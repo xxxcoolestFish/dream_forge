@@ -129,22 +129,47 @@ void AiClient::disconnect()
 
 bool AiClient::startRequest(const json& request)
 {
-    if (!m_connected) return false;
-    if (m_impl->requestInFlight) return false;
+    spdlog::info("[AICLIENT] startRequest: connected={}, inFlight={}",
+        m_connected, m_impl->requestInFlight);
+    spdlog::default_logger()->flush();
 
-    spdlog::info("AiClient: launching async request...");
+    if (!m_connected) { spdlog::warn("[AICLIENT] not connected!"); return false; }
+    if (m_impl->requestInFlight) { spdlog::warn("[AICLIENT] request already in flight!"); return false; }
 
-    // 在后台线程执行同步请求
-    zmq::context_t* ctx = m_impl->context.get();
-    std::string addr = m_impl->address;
+    spdlog::info("[AICLIENT] creating async task...");
+    spdlog::default_logger()->flush();
 
-    m_impl->pendingFuture = std::async(std::launch::async,
-        [ctx, addr, request]() -> json {
-            return Impl::doRequest(ctx, addr, request);
-        });
+    try
+    {
+        zmq::context_t* ctx = m_impl->context.get();
+        std::string addr = m_impl->address;
 
-    m_impl->requestInFlight = true;
-    return true;
+        spdlog::info("[AICLIENT] ctx={}, addr={}", (void*)ctx, addr);
+        spdlog::default_logger()->flush();
+
+        m_impl->pendingFuture = std::async(std::launch::async,
+            [ctx, addr, request]() -> json {
+                return Impl::doRequest(ctx, addr, request);
+            });
+
+        spdlog::info("[AICLIENT] async task launched OK");
+        spdlog::default_logger()->flush();
+
+        m_impl->requestInFlight = true;
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        spdlog::error("[AICLIENT] startRequest exception: {}", e.what());
+        spdlog::default_logger()->flush();
+        return false;
+    }
+    catch (...)
+    {
+        spdlog::error("[AICLIENT] startRequest unknown exception!");
+        spdlog::default_logger()->flush();
+        return false;
+    }
 }
 
 std::optional<json> AiClient::pollResponse()

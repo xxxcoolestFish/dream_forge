@@ -131,17 +131,25 @@ void DialogueSystem::onUpdate(World& world, double dt)
     request["payload"]["history"] = nlohmann::json::array();
 
     // --- 发送请求 ---
-    spdlog::info("按下 E 键，与 {} 对话中...", m_pendingNpcName);
+    spdlog::info("[DIALOGUE] step 1: E key detected, building request...");
+    spdlog::default_logger()->flush();
+
+    spdlog::info("[DIALOGUE] step 2: calling startRequest...");
+    spdlog::default_logger()->flush();
 
     if (m_aiClient.startRequest(request))
     {
+        spdlog::info("[DIALOGUE] step 3: startRequest OK, setting wait flag");
+        spdlog::default_logger()->flush();
         m_waitingForResponse = true;
     }
     else
     {
-        spdlog::warn("无法发送对话请求（AI 服务未连接？）");
-        spdlog::info("请先启动：python ai_service/main.py --model qwen2.5:7b");
+        spdlog::warn("[DIALOGUE] startRequest FAILED - AI service not connected?");
+        spdlog::default_logger()->flush();
     }
+    spdlog::info("[DIALOGUE] step 4: returning from onUpdate");
+    spdlog::default_logger()->flush();
     }
     catch (const std::exception& e)
     {
