@@ -97,10 +97,21 @@ void UIRenderer::setEcsWorld(engine::ecs::World* world)
 
 void UIRenderer::update(float dt)
 {
-    if (m_root)
+    if (!m_root) return;
+
+    try
     {
         m_root->update(dt);
-        resolveBindings(m_root.get());
+        if (m_bindingContext.hasEcs())
+            resolveBindings(m_root.get());
+    }
+    catch (const std::exception& e)
+    {
+        spdlog::error("UIRenderer::update error: {}", e.what());
+    }
+    catch (...)
+    {
+        spdlog::error("UIRenderer::update unknown error");
     }
 }
 
@@ -115,14 +126,30 @@ void UIRenderer::resolveBindings(Widget* w)
 void UIRenderer::render(render::SpriteRenderer& spriteRenderer,
                          uint32_t screenWidth, uint32_t screenHeight)
 {
-    if (!m_root) return;
+    if (!m_root) { spdlog::debug("UIRenderer::render: no root widget"); return; }
 
-    // 第1遍：渲染所有 Panel/Button（背景层）→ 提交到队列
-    renderBackgroundWidgets(m_root.get(), spriteRenderer);
-    spriteRenderer.flush(screenWidth, screenHeight);
+    static bool firstRender = true;
+    if (firstRender)
+    {
+        spdlog::info("UIRenderer: first render (root='{}', screen={}x{})",
+            m_root->id(), screenWidth, screenHeight);
+        firstRender = false;
+    }
 
-    // 第2遍：渲染所有 Text（文字层）→ 直接 OpenGL 绘制
-    renderTextWidgets(m_root.get(), spriteRenderer);
+    try
+    {
+        renderBackgroundWidgets(m_root.get(), spriteRenderer);
+        spriteRenderer.flush(screenWidth, screenHeight);
+        renderTextWidgets(m_root.get(), spriteRenderer);
+    }
+    catch (const std::exception& e)
+    {
+        spdlog::error("UIRenderer::render error: {}", e.what());
+    }
+    catch (...)
+    {
+        spdlog::error("UIRenderer::render unknown error");
+    }
 }
 
 void UIRenderer::renderBackgroundWidgets(Widget* w, render::SpriteRenderer& sr)
