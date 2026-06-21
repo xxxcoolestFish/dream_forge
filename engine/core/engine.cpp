@@ -19,6 +19,7 @@
 #include "engine/ecs/systems/interaction_system.h"
 #include "engine/input/input_system.h"
 #include "engine/script/script_engine.h"
+#include "engine/narrative/quest_manager.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -55,6 +56,9 @@ struct Engine::Impl
 
     // Phase 5: 脚本
     std::unique_ptr<script::ScriptEngine> scriptEngine;
+
+    // Phase 5: 叙事系统
+    std::unique_ptr<narrative::QuestManager> questManager;
 };
 
 // =========================================================================
@@ -220,12 +224,19 @@ bool Engine::initECS()
         m_impl->uiRenderer->loadFont("C:/Windows/Fonts/arial.ttf", 20.0f);
     }
 
-    // 5. 脚本引擎
+    // 5. 任务管理器（ScriptEngine 之前创建，因为脚本需要绑定 Quest API）
+    m_impl->questManager = std::make_unique<narrative::QuestManager>(
+        m_impl->ecsWorld.get(),
+        m_impl->eventBus.get());
+    m_impl->questManager->loadDefinitions("assets/quests/");
+
+    // 6. 脚本引擎
     m_impl->scriptEngine = std::make_unique<script::ScriptEngine>();
     m_impl->scriptEngine->init(
         m_impl->ecsWorld.get(),
         m_impl->eventBus.get(),
-        m_impl->inputSystem.get());
+        m_impl->inputSystem.get(),
+        m_impl->questManager.get());
 
     return true;
 }
@@ -320,6 +331,12 @@ void Engine::run()
                 m_impl->scriptEngine->onUpdate(dt);
             }
 
+            // --- 任务管理器更新 ---
+            if (m_impl->questManager)
+            {
+                m_impl->questManager->update(dt);
+            }
+
             // --- 逻辑更新 ---
             world.updateSystems(dt);
 
@@ -410,6 +427,7 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
+    m_impl->questManager.reset();
     m_impl->scriptEngine->shutdown();
     m_impl->scriptEngine.reset();
     m_impl->uiRenderer.reset();

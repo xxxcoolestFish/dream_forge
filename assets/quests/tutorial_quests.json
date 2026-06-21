@@ -1,0 +1,38 @@
+{
+  "questId": "q_collect_herbs",
+  "name": "采集草药",
+  "description": "老陈需要5株银叶草来制作治疗药水。草药在村庄北边的森林里。",
+  "giverNpc": "老陈",
+  "objectives": [
+    {
+      "objectiveId": "collect_herbs",
+      "description": "收集银叶草",
+      "type": "collect_item",
+      "target": "silverleaf_herb",
+      "required": 5
+    },
+    {
+      "objectiveId": "return_to_chen",
+      "description": "将草药交给老陈",
+      "type": "talk_to_npc",
+      "target": "老陈",
+      "required": 1
+    }
+  ],
+  "rewards": {
+    "xp": 150,
+    "items": ["healing_potion"],
+    "flags": { "helped_chen": true },
+    "affinity": { "老陈": 0.3 }
+  },
+  "stages": [
+    {
+      "stageId": "active",
+      "journalEntry": "老陈需要5株银叶草。我应该在村庄北边的森林里找到它们。"
+    },
+    {
+      "stageId": "completed",
+      "journalEntry": "我把草药交给了老陈。他给了我治疗药水作为回报。"
+    }
+  ]
+}

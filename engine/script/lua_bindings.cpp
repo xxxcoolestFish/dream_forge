@@ -12,6 +12,7 @@
 #include "engine/ecs/component_types.h"
 #include "engine/core/event_bus.h"
 #include "engine/input/input_system.h"
+#include "engine/narrative/quest_manager.h"
 
 #include <glm/glm.hpp>
 #include <GLFW/glfw3.h>
@@ -100,7 +101,8 @@ static uint32_t getPlayerEntity(ecs::World& w)
 void registerAllBindings(sol::state& lua,
                          ecs::World* world,
                          EventBus* eventBus,
-                         input::InputSystem* input)
+                         input::InputSystem* input,
+                         narrative::QuestManager* questManager)
 {
     // --- 打开基础库（print, type, error 等） ---
     lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::math,
@@ -383,14 +385,56 @@ void registerAllBindings(sol::state& lua,
     keys["5"]     = GLFW_KEY_5;
 
     // =====================================================================
-    // 7. narrative 全局表 — Tier 2: 叙事 API（Phase 5.3+ 逐步填充）
+    // 7. narrative 全局表 — Tier 2: 叙事 API
     // =====================================================================
     sol::table narr = lua["narrative"].get_or_create<sol::table>();
 
-    // 占位：后续 Phase 会注册 say, startQuest, setFlag 等
-    narr.set_function("_version", []() -> std::string {
-        return "0.1.0";
-    });
+    narr.set_function("_version", []() -> std::string { return "0.2.0"; });
+
+    // 任务系统（需要 QuestManager）
+    if (questManager)
+    {
+        narr.set_function("startQuest", [questManager, world](const std::string& questId) {
+            // 查找玩家实体
+            auto view = world->view<Transform, Player>();
+            for (auto e : view)
+            {
+                questManager->startQuest(e, questId);
+                return;
+            }
+        });
+
+        narr.set_function("completeQuest", [questManager, world](const std::string& questId) {
+            auto view = world->view<Transform, Player>();
+            for (auto e : view)
+                questManager->completeQuest(e, questId);
+        });
+
+        narr.set_function("failQuest", [questManager, world](const std::string& questId) {
+            auto view = world->view<Transform, Player>();
+            for (auto e : view)
+                questManager->failQuest(e, questId);
+        });
+
+        narr.set_function("updateObjective",
+            [questManager, world](const std::string& questId,
+                                   const std::string& objectiveId, int delta) {
+                auto view = world->view<Transform, Player>();
+                for (auto e : view)
+                    questManager->updateObjective(e, questId, objectiveId, delta);
+            });
+
+        narr.set_function("isQuestActive", [questManager, world](const std::string& questId) -> bool {
+            auto view = world->view<Transform, Player>();
+            for (auto e : view)
+                return questManager->isQuestActive(e, questId);
+            return false;
+        });
+    }
+    else
+    {
+        spdlog::warn("ScriptEngine: QuestManager not available, quest API disabled");
+    }
 
     // =====================================================================
     // 8. 常量

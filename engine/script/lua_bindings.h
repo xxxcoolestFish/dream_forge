@@ -17,6 +17,7 @@
 
 namespace engine::ecs { class World; }
 namespace engine::input { class InputSystem; }
+namespace engine::narrative { class QuestManager; }
 class EventBus;
 
 namespace engine::script {
@@ -25,6 +26,7 @@ namespace engine::script {
 void registerAllBindings(sol::state& lua,
                          ecs::World* world,
                          EventBus* eventBus,
-                         input::InputSystem* input);
+                         input::InputSystem* input,
+                         narrative::QuestManager* questManager = nullptr);
 
 } // namespace engine::script

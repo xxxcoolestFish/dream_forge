@@ -26,6 +26,7 @@
 
 namespace engine::ecs { class World; }
 namespace engine::input { class InputSystem; }
+namespace engine::narrative { class QuestManager; }
 namespace engine { class EventBus; }
 
 namespace engine::script {
@@ -42,7 +43,8 @@ public:
 
     // --- 初始化 ---
     // 必须在所有其他方法之前调用，注册所有 C++ 绑定
-    void init(ecs::World* world, EventBus* eventBus, input::InputSystem* input);
+    void init(ecs::World* world, EventBus* eventBus, input::InputSystem* input,
+              narrative::QuestManager* questManager = nullptr);
 
     // 反初始化，清理 Lua 状态
     void shutdown();

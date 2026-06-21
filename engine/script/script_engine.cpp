@@ -26,7 +26,8 @@ ScriptEngine::~ScriptEngine()
         shutdown();
 }
 
-void ScriptEngine::init(ecs::World* world, EventBus* eventBus, input::InputSystem* input)
+void ScriptEngine::init(ecs::World* world, EventBus* eventBus, input::InputSystem* input,
+                        narrative::QuestManager* questManager)
 {
     m_world    = world;
     m_eventBus = eventBus;
@@ -34,8 +35,8 @@ void ScriptEngine::init(ecs::World* world, EventBus* eventBus, input::InputSyste
 
     spdlog::info("ScriptEngine: initializing Lua VM...");
 
-    // 注册所有 C++ → Lua 绑定
-    registerAllBindings();
+    // 注册所有 C++ → Lua 绑定（传入 QuestManager 供叙事API使用）
+    engine::script::registerAllBindings(m_lua, m_world, m_eventBus, m_input, questManager);
 
     // 标记已初始化，允许后续脚本加载
     m_initialized = true;
@@ -157,7 +158,7 @@ void ScriptEngine::onUpdate(double dt)
 
 void ScriptEngine::registerAllBindings()
 {
-    engine::script::registerAllBindings(m_lua, m_world, m_eventBus, m_input);
+    // 此方法不再直接使用，绑定在 init() 中调用
 }
 
 } // namespace engine::script

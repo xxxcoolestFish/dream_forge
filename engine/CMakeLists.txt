@@ -90,7 +90,7 @@ set(ENGINE_SCRIPT_SOURCES
 # --- Phase 5: narrative (叙事系统) ---
 set(ENGINE_NARRATIVE_SOURCES
     narrative/dialogue_tree.cpp
-    # quest_manager.cpp      # 5.4
+    narrative/quest_manager.cpp
     # story_flags.cpp         # 5.5
     # condition_evaluator.cpp # 5.5
 )
