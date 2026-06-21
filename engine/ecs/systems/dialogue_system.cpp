@@ -29,6 +29,7 @@ void DialogueSystem::onUpdate(World& world, double dt)
     // --- 轮询 AI 响应 ---
     if (m_waitingForResponse)
     {
+        m_responseTimer += dt;
         auto response = m_aiClient.pollResponse();
         if (response.has_value())
         {
@@ -61,6 +62,13 @@ void DialogueSystem::onUpdate(World& world, double dt)
 
             spdlog::info("  (按 E 继续对话)");
             m_waitingForResponse = false;
+            m_responseTimer = 0.0;
+        }
+        else if (m_responseTimer > 5.0)
+        {
+            // 5 秒后每秒提示一次
+            spdlog::info("  等待 AI 服务响应中... ({}s)", static_cast<int>(m_responseTimer));
+            m_responseTimer = 0.0; // 重置，下个 5 秒再提示
         }
         return;
     }

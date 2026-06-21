@@ -24,7 +24,7 @@ struct AiClient::Impl
         try
         {
             zmq::socket_t socket(*ctx, zmq::socket_type::req);
-            socket.set(zmq::sockopt::rcvtimeo, 30000);
+            socket.set(zmq::sockopt::rcvtimeo, 8000);  // 8秒超时
             socket.set(zmq::sockopt::sndtimeo, 5000);
             socket.set(zmq::sockopt::linger, 0);
             socket.connect(addr);
