@@ -334,7 +334,9 @@ void Engine::run()
             if (m_impl->uiRenderer)
             {
                 m_impl->uiRenderer->update(static_cast<float>(dt));
-                m_impl->uiRenderer->render(*m_impl->spriteRenderer);
+                m_impl->uiRenderer->render(*m_impl->spriteRenderer,
+                    m_impl->config.windowWidth,
+                    m_impl->config.windowHeight);
 
                 // 鼠标事件路由到 UI
                 if (m_impl->inputSystem)
@@ -347,11 +349,6 @@ void Engine::run()
                             static_cast<float>(m_impl->inputSystem->mouseY()));
                     }
                 }
-
-                if (m_impl->spriteRenderer)
-                    m_impl->spriteRenderer->flush(
-                        m_impl->config.windowWidth,
-                        m_impl->config.windowHeight);
             }
 
             render.endFrame();

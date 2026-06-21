@@ -94,14 +94,14 @@ void UIRenderer::update(float dt)
     if (m_root) m_root->update(dt);
 }
 
-void UIRenderer::render(render::SpriteRenderer& spriteRenderer)
+void UIRenderer::render(render::SpriteRenderer& spriteRenderer,
+                         uint32_t screenWidth, uint32_t screenHeight)
 {
     if (!m_root) return;
 
     // 第1遍：渲染所有 Panel/Button（背景层）→ 提交到队列
     renderBackgroundWidgets(m_root.get(), spriteRenderer);
-    // 刷新背景
-    spriteRenderer.flush(1280, 720); // TODO: 从engine获取屏幕尺寸
+    spriteRenderer.flush(screenWidth, screenHeight);
 
     // 第2遍：渲染所有 Text（文字层）→ 直接 OpenGL 绘制
     renderTextWidgets(m_root.get(), spriteRenderer);

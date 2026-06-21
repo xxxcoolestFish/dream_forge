@@ -41,7 +41,8 @@ public:
     void update(float dt);
 
     // 渲染（在场景渲染之后、swap 之前调用）
-    void render(render::SpriteRenderer& spriteRenderer);
+    void render(render::SpriteRenderer& spriteRenderer,
+                uint32_t screenWidth, uint32_t screenHeight);
 
     // 鼠标事件
     void onMouseDown(float x, float y);
