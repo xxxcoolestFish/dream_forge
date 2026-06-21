@@ -38,11 +38,12 @@ int main(int argc, char* argv[])
     // --- ECS 测试：创建 Entity ---
     auto* world = engine.ecsWorld();
 
-    // 创建玩家 Entity
+    // 创建玩家 Entity（挂 Player 标签，MovementSystem 只移动玩家）
     auto player = world->createEntity();
     world->addComponent<engine::ecs::Transform>(player);
     world->addComponent<engine::ecs::Sprite>(player);
     world->addComponent<engine::ecs::Stats>(player);
+    world->addComponent<engine::ecs::Player>(player);
 
     auto& playerTransform = world->getComponent<engine::ecs::Transform>(player);
     playerTransform.position = glm::vec3(100.0f, 100.0f, 0.0f);

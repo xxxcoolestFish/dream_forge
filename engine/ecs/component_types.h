@@ -175,4 +175,12 @@ struct AICharacterContext
     std::vector<std::string> knowledgeDomains;
 };
 
+// =========================================================================
+// Player — 玩家标记（标记玩家 Entity，供 MovementSystem 等识别）
+// =========================================================================
+struct Player
+{
+    int dummy = 0; // EnTT 对空 struct 的 get<> 返回 void，加占位字段
+};
+
 } // namespace engine::ecs
