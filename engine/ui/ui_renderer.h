@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "engine/ui/font.h"
+
 #include <memory>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -32,6 +34,9 @@ public:
     // 从 JSON 文件加载 UI
     bool loadFromFile(const std::string& path);
 
+    // 加载字体
+    bool loadFont(const std::string& ttfPath, float pixelHeight = 24.0f);
+
     // 每帧更新
     void update(float dt);
 
@@ -47,6 +52,7 @@ public:
 
 private:
     std::unique_ptr<Widget> m_root;
+    std::shared_ptr<Font>   m_font;
 };
 
 } // namespace engine::ui

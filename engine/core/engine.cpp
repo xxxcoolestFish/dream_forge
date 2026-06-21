@@ -207,8 +207,13 @@ bool Engine::initECS()
         return false;
     }
 
-    // 4. UI 渲染器（初始为空，可通过 loadUI 加载）
+    // 4. UI 渲染器 + 字体
     m_impl->uiRenderer = std::make_unique<ui::UIRenderer>();
+    if (!m_impl->uiRenderer->loadFont("C:/Windows/Fonts/consola.ttf", 22.0f))
+    {
+        spdlog::warn("Failed to load consola.ttf, trying arial.ttf...");
+        m_impl->uiRenderer->loadFont("C:/Windows/Fonts/arial.ttf", 20.0f);
+    }
 
     return true;
 }

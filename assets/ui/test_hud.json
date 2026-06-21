@@ -1,28 +1,33 @@
 {
   "type": "BoxLayout",
   "id": "root",
-  "rect": [10, 10, 300, 200],
+  "rect": [10, 10, 300, 160],
   "direction": "vertical",
-  "spacing": 6,
+  "spacing": 4,
   "padding": 8,
   "children": [
     {
       "type": "Panel",
       "id": "title_bar",
-      "rect": [0, 0, 280, 36],
-      "color": [40, 40, 60, 255]
+      "color": [35, 35, 55, 230]
+    },
+    {
+      "type": "Text",
+      "id": "title_text",
+      "text": "AI Game Frame — HUD",
+      "color": [220, 220, 255]
     },
     {
       "type": "Button",
       "id": "btn_talk",
       "text": "与老陈对话 (E)",
-      "color": [60, 80, 120, 255]
+      "color": [55, 75, 110, 255]
     },
     {
       "type": "Button",
       "id": "btn_exit",
-      "text": "退出游戏",
-      "color": [120, 60, 60, 255]
+      "text": "退出游戏 (ESC)",
+      "color": [110, 55, 55, 255]
     }
   ]
 }

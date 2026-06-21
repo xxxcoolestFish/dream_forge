@@ -8,6 +8,7 @@
 #include "engine/ui/widgets/panel.h"
 #include "engine/ui/widgets/button.h"
 #include "engine/ui/widgets/box_layout.h"
+#include "engine/ui/widgets/text.h"
 #include "engine/render/sprite.h"
 
 #include <spdlog/spdlog.h>
@@ -24,6 +25,7 @@ static bool registerWidgetTypes()
     {
         Widget::registerType("Panel",     Panel::fromJson);
         Widget::registerType("Button",    Button::fromJson);
+        Widget::registerType("Text",      Text::fromJson);
         Widget::registerType("BoxLayout", BoxLayout::fromJson);
         done = true;
     }
@@ -72,6 +74,18 @@ bool UIRenderer::loadFromFile(const std::string& path)
     std::stringstream buf;
     buf << file.rdbuf();
     return loadFromString(buf.str());
+}
+
+bool UIRenderer::loadFont(const std::string& ttfPath, float pixelHeight)
+{
+    m_font = std::make_shared<Font>();
+    if (m_font->load(ttfPath, pixelHeight))
+    {
+        Text::setDefaultFont(m_font);
+        return true;
+    }
+    m_font.reset();
+    return false;
 }
 
 void UIRenderer::update(float dt)

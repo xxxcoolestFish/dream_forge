@@ -49,9 +49,11 @@ set(ENGINE_RENDER_SOURCES
 # --- Phase 4: ui ---
 set(ENGINE_UI_SOURCES
     ui/widget.cpp
+    ui/font.cpp
     ui/ui_renderer.cpp
     ui/widgets/panel.cpp
     ui/widgets/button.cpp
+    ui/widgets/text.cpp
     ui/widgets/box_layout.cpp
 )
 
@@ -118,6 +120,7 @@ target_include_directories(engine PUBLIC
     ${glm_SOURCE_DIR}
     ${spdlog_SOURCE_DIR}/include
     ${nlohmann_json_SOURCE_DIR}/include
+    ${stb_SOURCE_DIR}
     ${libzmq_SOURCE_DIR}/include
     ${cppzmq_SOURCE_DIR}
 )
