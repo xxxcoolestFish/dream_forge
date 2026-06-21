@@ -47,7 +47,11 @@ bool UIRenderer::loadFromString(const std::string& jsonStr)
     {
         nlohmann::json j = nlohmann::json::parse(jsonStr);
         m_root = Widget::fromJson(j);
-        spdlog::info("UIRenderer: loaded UI from string");
+        spdlog::info("UIRenderer: loaded UI (root='{}', type='{}', rect=[{},{},{},{}])",
+            m_root->id(),
+            j.value("type", "?"),
+            m_root->rect().x, m_root->rect().y,
+            m_root->rect().w, m_root->rect().h);
         return true;
     }
     catch (const std::exception& e)

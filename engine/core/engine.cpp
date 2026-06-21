@@ -325,11 +325,24 @@ void Engine::run()
                     m_impl->config.windowHeight);
             }
 
-            // Phase 4: UI 渲染（最上层）
+            // Phase 4: UI 渲染（最上层）+ 鼠标事件路由
             if (m_impl->uiRenderer)
             {
                 m_impl->uiRenderer->update(static_cast<float>(dt));
                 m_impl->uiRenderer->render(*m_impl->spriteRenderer);
+
+                // 鼠标事件路由到 UI
+                if (m_impl->inputSystem)
+                {
+                    if (m_impl->inputSystem->isMousePressed(
+                            engine::input::MouseButton::Left))
+                    {
+                        m_impl->uiRenderer->onMouseDown(
+                            static_cast<float>(m_impl->inputSystem->mouseX()),
+                            static_cast<float>(m_impl->inputSystem->mouseY()));
+                    }
+                }
+
                 if (m_impl->spriteRenderer)
                     m_impl->spriteRenderer->flush(
                         m_impl->config.windowWidth,

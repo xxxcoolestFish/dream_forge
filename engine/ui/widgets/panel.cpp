@@ -23,6 +23,13 @@ void Panel::render(render::SpriteRenderer& renderer)
     desc.tint     = { m_color.r, m_color.g, m_color.b, m_color.a };
     renderer.submit(desc);
 
+    static bool once = false;
+    if (!once) {
+        spdlog::info("Panel '{}': abs=({:.0f},{:.0f},{:.0f},{:.0f}) color=({:.2f},{:.2f},{:.2f})",
+            m_id, abs.x, abs.y, abs.w, abs.h, m_color.r, m_color.g, m_color.b);
+        once = true;
+    }
+
     Widget::render(renderer);
 }
 
