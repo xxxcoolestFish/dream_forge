@@ -42,9 +42,14 @@ LLM 输出 → 剧情 + 对话 + 场景图像
 
 ```bash
 # 需要 Visual Studio 2022 + CMake 3.27+
+# 首次
 cmake -B build
+# 编译
 cmake --build build --config Debug
 ```
+
+> 编译前确认 `cmake` 在 PATH 中。如果找不到，将 VS 自带的 CMake 加入环境变量：
+> `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin`
 
 ### 运行
 
