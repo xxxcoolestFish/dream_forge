@@ -72,6 +72,9 @@ typedef unsigned char  GLboolean;
 #ifndef GL_TEXTURE0
 #  define GL_TEXTURE0                 0x84C0
 #endif
+#ifndef GL_TEXTURE1
+#  define GL_TEXTURE1                 0x84C1
+#endif
 #ifndef GL_TEXTURE_2D
 #  define GL_TEXTURE_2D               0x0DE1
 #endif
@@ -113,6 +116,39 @@ typedef unsigned char  GLboolean;
 #endif
 #ifndef GL_DEBUG_OUTPUT
 #  define GL_DEBUG_OUTPUT             0x92E0
+#endif
+#ifndef GL_FRAMEBUFFER
+#  define GL_FRAMEBUFFER              0x8D40
+#endif
+#ifndef GL_COLOR_ATTACHMENT0
+#  define GL_COLOR_ATTACHMENT0        0x8CE0
+#endif
+#ifndef GL_DEPTH_ATTACHMENT
+#  define GL_DEPTH_ATTACHMENT         0x8D00
+#endif
+#ifndef GL_DEPTH_COMPONENT24
+#  define GL_DEPTH_COMPONENT24        0x81A6
+#endif
+#ifndef GL_RENDERBUFFER
+#  define GL_RENDERBUFFER             0x8D41
+#endif
+#ifndef GL_FRAMEBUFFER_COMPLETE
+#  define GL_FRAMEBUFFER_COMPLETE     0x8CD5
+#endif
+#ifndef GL_DRAW_FRAMEBUFFER
+#  define GL_DRAW_FRAMEBUFFER         0x8CA9
+#endif
+#ifndef GL_READ_FRAMEBUFFER
+#  define GL_READ_FRAMEBUFFER         0x8CA8
+#endif
+#ifndef GL_COLOR_BUFFER_BIT
+#  define GL_COLOR_BUFFER_BIT         0x00004000
+#endif
+#ifndef GL_DEPTH_BUFFER_BIT
+#  define GL_DEPTH_BUFFER_BIT         0x00000100
+#endif
+#ifndef GL_PROGRAM_POINT_SIZE
+#  define GL_PROGRAM_POINT_SIZE       0x8642
 #endif
 
 struct GLFWwindow;
@@ -164,6 +200,7 @@ using PFNGLDELETEVERTEXARRAYSPROC   = void    (APIENTRY *)(GLsizei, const GLuint
 using PFNGLGENBUFFERSPROC           = void    (APIENTRY *)(GLsizei, GLuint*);
 using PFNGLBINDBUFFERPROC           = void    (APIENTRY *)(GLenum, GLuint);
 using PFNGLBUFFERDATAPROC           = void    (APIENTRY *)(GLenum, GLsizeiptr, const void*, GLenum);
+using PFNGLBUFFERSUBDATAPROC        = void    (APIENTRY *)(GLenum, GLintptr, GLsizeiptr, const void*);
 using PFNGLDELETEBUFFERSPROC        = void    (APIENTRY *)(GLsizei, const GLuint*);
 
 // --- Vertex Attrib ---
@@ -180,12 +217,28 @@ using PFNGLDELETETEXTURESPROC       = void    (APIENTRY *)(GLsizei, const GLuint
 
 // --- Uniform ---
 using PFNGLGETUNIFORMLOCATIONPROC   = GLint   (APIENTRY *)(GLuint, const GLchar*);
+using PFNGLUNIFORM1IPROC            = void    (APIENTRY *)(GLint, GLint);
+using PFNGLUNIFORM1FPROC            = void    (APIENTRY *)(GLint, GLfloat);
 using PFNGLUNIFORM2FPROC            = void    (APIENTRY *)(GLint, GLfloat, GLfloat);
-using PFNGLUNIFORMMATRIX4FVPROC     = void    (APIENTRY *)(GLint, GLsizei, GLboolean, const GLfloat*);
+using PFNGLUNIFORM3FPROC            = void    (APIENTRY *)(GLint, GLfloat, GLfloat, GLfloat);
 using PFNGLUNIFORM4FPROC            = void    (APIENTRY *)(GLint, GLfloat, GLfloat, GLfloat, GLfloat);
+using PFNGLUNIFORMMATRIX4FVPROC     = void    (APIENTRY *)(GLint, GLsizei, GLboolean, const GLfloat*);
 
 // --- Draw ---
 using PFNGLDRAWARRAYSPROC           = void    (APIENTRY *)(GLenum, GLint, GLsizei);
+
+// --- FBO (Phase 6.3) ---
+using PFNGLGENFRAMEBUFFERSPROC      = void    (APIENTRY *)(GLsizei, GLuint*);
+using PFNGLBINDFRAMEBUFFERPROC      = void    (APIENTRY *)(GLenum, GLuint);
+using PFNGLFRAMEBUFFERTEXTURE2DPROC = void    (APIENTRY *)(GLenum, GLenum, GLenum, GLuint, GLint);
+using PFNGLCHECKFRAMEBUFFERSTATUSPROC = GLenum (APIENTRY *)(GLenum);
+using PFNGLDELETEFRAMEBUFFERSPROC   = void    (APIENTRY *)(GLsizei, const GLuint*);
+using PFNGLGENRENDERBUFFERSPROC     = void    (APIENTRY *)(GLsizei, GLuint*);
+using PFNGLBINDRENDERBUFFERPROC     = void    (APIENTRY *)(GLenum, GLuint);
+using PFNGLRENDERBUFFERSTORAGEPROC  = void    (APIENTRY *)(GLenum, GLenum, GLsizei, GLsizei);
+using PFNGLFRAMEBUFFERRENDERBUFFERPROC = void (APIENTRY *)(GLenum, GLenum, GLenum, GLuint);
+using PFNGLDELETERENDERBUFFERSPROC  = void    (APIENTRY *)(GLsizei, const GLuint*);
+using PFNGLBLITFRAMEBUFFERPROC      = void    (APIENTRY *)(GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLbitfield, GLenum);
 
 // =========================================================================
 // 函数指针声明
@@ -211,6 +264,7 @@ extern PFNGLDELETEVERTEXARRAYSPROC    DeleteVertexArrays;
 extern PFNGLGENBUFFERSPROC            GenBuffers;
 extern PFNGLBINDBUFFERPROC            BindBuffer;
 extern PFNGLBUFFERDATAPROC            BufferData;
+extern PFNGLBUFFERSUBDATAPROC         BufferSubData;
 extern PFNGLDELETEBUFFERSPROC         DeleteBuffers;
 
 extern PFNGLVERTEXATTRIBPOINTERPROC   VertexAttribPointer;
@@ -224,10 +278,25 @@ extern PFNGLTEXPARAMETERIPROC         TexParameteri;
 extern PFNGLDELETETEXTURESPROC        DeleteTextures;
 
 extern PFNGLGETUNIFORMLOCATIONPROC    GetUniformLocation;
+extern PFNGLUNIFORM1IPROC             Uniform1i;
+extern PFNGLUNIFORM1FPROC             Uniform1f;
 extern PFNGLUNIFORM2FPROC             Uniform2f;
-extern PFNGLUNIFORMMATRIX4FVPROC      UniformMatrix4fv;
+extern PFNGLUNIFORM3FPROC             Uniform3f;
 extern PFNGLUNIFORM4FPROC             Uniform4f;
+extern PFNGLUNIFORMMATRIX4FVPROC      UniformMatrix4fv;
 
 extern PFNGLDRAWARRAYSPROC            DrawArrays;
+
+extern PFNGLGENFRAMEBUFFERSPROC       GenFramebuffers;
+extern PFNGLBINDFRAMEBUFFERPROC       BindFramebuffer;
+extern PFNGLFRAMEBUFFERTEXTURE2DPROC  FramebufferTexture2D;
+extern PFNGLCHECKFRAMEBUFFERSTATUSPROC CheckFramebufferStatus;
+extern PFNGLDELETEFRAMEBUFFERSPROC    DeleteFramebuffers;
+extern PFNGLGENRENDERBUFFERSPROC      GenRenderbuffers;
+extern PFNGLBINDRENDERBUFFERPROC      BindRenderbuffer;
+extern PFNGLRENDERBUFFERSTORAGEPROC   RenderbufferStorage;
+extern PFNGLFRAMEBUFFERRENDERBUFFERPROC FramebufferRenderbuffer;
+extern PFNGLDELETERENDERBUFFERSPROC   DeleteRenderbuffers;
+extern PFNGLBLITFRAMEBUFFERPROC       BlitFramebuffer;
 
 } // namespace engine::render::gl

@@ -42,23 +42,20 @@ public:
     SceneRenderer();
     ~SceneRenderer();
 
-    // 渲染整个场景
+    // 渲染整个场景（3D 透视模式）
     void render(const engine::scene::Scene& scene,
                 const Camera& camera,
-                SpriteRenderer& spriteRenderer,
-                uint32_t screenWidth,
-                uint32_t screenHeight);
+                SpriteRenderer& spriteRenderer);
 
     // 启用/禁用背景渲染
     void setDrawBackground(bool draw) { m_drawBackground = draw; }
     void setDrawLayers(bool draw)     { m_drawLayers = draw; }
 
 private:
-    // 渲染单个层
+    // 渲染单个层（3D 空间）
     void renderLayer(const engine::scene::Layer& layer,
                      const Camera& camera,
-                     SpriteRenderer& renderer,
-                     uint32_t screenWidth, uint32_t screenHeight);
+                     SpriteRenderer& renderer);
 
     bool m_drawBackground = true;
     bool m_drawLayers     = true;

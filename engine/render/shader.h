@@ -3,13 +3,16 @@
  * @brief 简单的 OpenGL 着色器程序封装
  *
  * 负责编译顶点/片段着色器并链接为着色器程序。
- * Phase 1 着色器作为内嵌字符串，无需从文件加载。
+ * 提供 uniform 设置接口（int/float/vec2/vec4/mat4）。
+ *
+ * Phase 6.1：uniformLocation/setMat4/setInt/setFloat/setVec4 已全部实现。
  */
 
 #pragma once
 
 #include <cstdint>
 #include <string>
+#include <glm/glm.hpp>
 
 namespace engine::render {
 
@@ -33,6 +36,12 @@ public:
     int uniformLocation(const std::string& name) const;
 
     // 设置 uniform
+    void setInt(const std::string& name, int value) const;
+    void setFloat(const std::string& name, float value) const;
+    void setVec2(const std::string& name, float x, float y) const;
+    void setVec2(const std::string& name, const glm::vec2& v) const;
+    void setVec4(const std::string& name, float x, float y, float z, float w) const;
+    void setVec4(const std::string& name, const glm::vec4& v) const;
     void setMat4(const std::string& name, const float* data) const;
 
     bool isValid() const { return m_programId != 0; }

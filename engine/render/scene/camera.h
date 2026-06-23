@@ -1,26 +1,19 @@
 /**
  * @file engine/render/scene/camera.h
- * @brief 2.5D 相机 — 控制场景视角和视差计算
+ * @brief 第一人称 3D 相机 — 鼠标旋转视角 + WASD 移动
  *
- * 相机围绕场景中心旋转，不同深度层产生不同的视差偏移量。
- * 旋转限制：水平 ±15°、垂直 ±5°。
+ * Phase 7: FPS 相机。玩家看哪里，相机就看哪里。
  *
- * 视差原理：
- *   深度因子 d (0=远景, 1=前景)
- *   相机偏移角度 (hAngle, vAngle)
- *   视差偏移 = d * maxParallax * angle
- *   近景偏移大（前景移动多），远景偏移小（天空几乎不动）
- *
- * 使用方式：
- *   Camera cam;
- *   cam.setPosition(100, 200);        // 相机看向的位置
- *   cam.setRotation(5.0f, -2.0f);     // 轻微旋转
- *   glm::vec2 offset = cam.parallaxOffset(layerDepth);  // 每层偏移
+ * 坐标系：
+ *   X = 右, Y = 上, Z = 朝向观察者
+ *   front = 相机前方向量（从 yaw/pitch 计算）
+ *   viewMatrix = lookAt(position, position + front, worldUp)
  */
 
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace engine::render {
 
@@ -30,48 +23,69 @@ public:
     Camera();
 
     // --- 位置 ---
-    void setPosition(float x, float y);
-    glm::vec2 position() const { return m_position; }
+    void setPosition(const glm::vec3& pos);
+    glm::vec3 position() const { return m_position; }
+    glm::vec3 front()    const { return m_front; }
 
-    // --- 旋转（角度制，受限制） ---
-    // horizontal: -15° ~ +15°
-    // vertical:   -5° ~ +5°
-    void setRotation(float horizontalDeg, float verticalDeg);
-    float horizontalAngle() const { return m_hAngle; }
-    float verticalAngle()   const { return m_vAngle; }
+    // --- 鼠标旋转 ---
+    void processMouse(float deltaX, float deltaY, float sensitivity = 0.1f);
 
-    // --- 缩放 ---
-    void  setZoom(float zoom);
-    float zoom() const { return m_zoom; }
+    // --- 键盘移动（相对于相机朝向） ---
+    void move(float forwardAmount, float rightAmount, float dt, float speed = 150.0f);
 
-    // --- 视差偏移计算 ---
-    // 给定深度值 (0~1)，返回该层在屏幕上的偏移量（像素）
-    glm::vec2 parallaxOffset(float depth) const;
+    // --- 跳跃 ---
+    void jump(float strength = 300.0f);
+    void updatePhysics(float dt);  // 重力 + 落地检测
+    bool isOnGround() const { return m_onGround; }
 
-    // 将世界坐标转换为屏幕坐标（考虑相机位置、旋转、视差）
-    glm::vec2 worldToScreen(glm::vec2 worldPos, float depth) const;
+    // --- 视角 ---
+    void setFov(float degrees);
+    float fov() const { return m_fov; }
 
-    // --- 屏幕尺寸（每帧设置） ---
+    // --- 屏幕 ---
     void setScreenSize(float width, float height);
 
-    // --- 最大视差偏移量（像素） ---
-    void  setMaxParallax(float pixels);
-    float maxParallax() const { return m_maxParallax; }
+    // --- 矩阵 ---
+    glm::mat4 viewMatrix()       const;
+    glm::mat4 projectionMatrix() const;
+    glm::mat4 viewProjection()   const;
+
+    // --- 深度映射 ---
+    float depthToZ(float depth) const;
+    glm::vec2 fillSizeAtZ(float z) const;
+
+    // 参考 Z（场景加载时相机的初始 Z，层尺寸基于此，不随相机移动改变）
+    void setReferenceZ(float refZ) { m_referenceZ = refZ; }
+
+    // 场景层 Z 范围
+    static constexpr float kSceneZNear = -30.0f;
+    static constexpr float kSceneZFar  = -500.0f;
 
 private:
-    glm::vec2 m_position { 0.0f, 0.0f };
+    glm::vec3 m_position { 640.0f, 360.0f, 200.0f };
+    glm::vec3 m_front    { 0.0f, 0.0f, -1.0f };
+    glm::vec3 m_up       { 0.0f, 1.0f, 0.0f };
+    glm::vec3 m_worldUp  { 0.0f, 1.0f, 0.0f };
+    glm::vec3 m_right    { 1.0f, 0.0f, 0.0f };
 
-    float m_hAngle = 0.0f;      // 水平角（度）
-    float m_vAngle = 0.0f;      // 垂直角（度）
+    float m_yaw    = -90.0f;   // 度，默认朝 -Z（场景方向）
+    float m_pitch  = 0.0f;
 
-    static constexpr float kMaxHAngle = 15.0f;
-    static constexpr float kMaxVAngle = 5.0f;
+    float m_fov    = 60.0f;
+    float m_near   = 1.0f;
+    float m_far    = 1000.0f;
+    float m_screenW    = 1280.0f;
+    float m_screenH    = 720.0f;
+    float m_referenceZ = 150.0f;
 
-    float m_zoom        = 1.0f;
-    float m_maxParallax = 30.0f;  // 最大视差偏移（像素）
+    // 跳跃物理
+    float m_velocityY = 0.0f;
+    float m_groundY   = 360.0f;  // 地面高度
+    bool  m_onGround  = true;
 
-    float m_screenWidth  = 1280.0f;
-    float m_screenHeight = 720.0f;
+    void updateVectors();
+    void rebuildProjection();
+    glm::mat4 m_projection { 1.0f };
 };
 
 } // namespace engine::render

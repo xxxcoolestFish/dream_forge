@@ -18,7 +18,7 @@ void Panel::render(render::SpriteRenderer& renderer)
 
     Rect abs = absoluteRect();
     SpriteDesc desc;
-    desc.position = { abs.x, abs.y };
+    desc.position = glm::vec3(abs.x, abs.y, 0.0f);
     desc.size     = { abs.w, abs.h };
     desc.tint     = { m_color.r, m_color.g, m_color.b, m_color.a };
     renderer.submit(desc);

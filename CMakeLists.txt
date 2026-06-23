@@ -153,8 +153,21 @@ FetchContent_Declare(cppzmq
 set(CPPZMQ_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(cppzmq)
 
+# --- Phase 6.2: SoLoud（音频引擎） ---
+include(cmake/SoLoud.cmake)
+
 # -----------------------------------------------------------------------------
 # 子目录
 # -----------------------------------------------------------------------------
 add_subdirectory(engine)
 add_subdirectory(sample)
+
+# CPack 安装目标（必须在 add_subdirectory 之后）
+install(TARGETS sample_game RUNTIME DESTINATION bin)
+install(DIRECTORY assets/ DESTINATION assets)
+
+# --- Phase 6.8: ImGui 编辑器 ---
+include(cmake/ImGui.cmake)
+
+# --- Phase 6.7: CPack 打包 ---
+include(cmake/Packaging.cmake)

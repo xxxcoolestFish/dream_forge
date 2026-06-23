@@ -40,6 +40,7 @@ PFNGLDELETEVERTEXARRAYSPROC    DeleteVertexArrays  = nullptr;
 PFNGLGENBUFFERSPROC            GenBuffers          = nullptr;
 PFNGLBINDBUFFERPROC            BindBuffer          = nullptr;
 PFNGLBUFFERDATAPROC            BufferData          = nullptr;
+PFNGLBUFFERSUBDATAPROC         BufferSubData       = nullptr;
 PFNGLDELETEBUFFERSPROC         DeleteBuffers       = nullptr;
 
 // Vertex Attrib
@@ -56,12 +57,28 @@ PFNGLDELETETEXTURESPROC        DeleteTextures      = nullptr;
 
 // Uniform
 PFNGLGETUNIFORMLOCATIONPROC    GetUniformLocation  = nullptr;
+PFNGLUNIFORM1IPROC             Uniform1i           = nullptr;
+PFNGLUNIFORM1FPROC             Uniform1f           = nullptr;
 PFNGLUNIFORM2FPROC             Uniform2f           = nullptr;
-PFNGLUNIFORMMATRIX4FVPROC      UniformMatrix4fv    = nullptr;
+PFNGLUNIFORM3FPROC             Uniform3f           = nullptr;
 PFNGLUNIFORM4FPROC             Uniform4f           = nullptr;
+PFNGLUNIFORMMATRIX4FVPROC      UniformMatrix4fv    = nullptr;
 
 // Draw
 PFNGLDRAWARRAYSPROC            DrawArrays          = nullptr;
+
+// FBO
+PFNGLGENFRAMEBUFFERSPROC       GenFramebuffers     = nullptr;
+PFNGLBINDFRAMEBUFFERPROC       BindFramebuffer     = nullptr;
+PFNGLFRAMEBUFFERTEXTURE2DPROC  FramebufferTexture2D = nullptr;
+PFNGLCHECKFRAMEBUFFERSTATUSPROC CheckFramebufferStatus = nullptr;
+PFNGLDELETEFRAMEBUFFERSPROC    DeleteFramebuffers  = nullptr;
+PFNGLGENRENDERBUFFERSPROC      GenRenderbuffers    = nullptr;
+PFNGLBINDRENDERBUFFERPROC      BindRenderbuffer    = nullptr;
+PFNGLRENDERBUFFERSTORAGEPROC   RenderbufferStorage = nullptr;
+PFNGLFRAMEBUFFERRENDERBUFFERPROC FramebufferRenderbuffer = nullptr;
+PFNGLDELETERENDERBUFFERSPROC   DeleteRenderbuffers = nullptr;
+PFNGLBLITFRAMEBUFFERPROC       BlitFramebuffer     = nullptr;
 
 // =========================================================================
 // 宏：加载函数指针
@@ -108,6 +125,7 @@ bool load(GLFWwindow* window)
     GL_LOAD_PROC(GenBuffers);
     GL_LOAD_PROC(BindBuffer);
     GL_LOAD_PROC(BufferData);
+    GL_LOAD_PROC(BufferSubData);
     GL_LOAD_PROC(DeleteBuffers);
 
     // Vertex Attrib
@@ -124,12 +142,28 @@ bool load(GLFWwindow* window)
 
     // Uniform
     GL_LOAD_PROC(GetUniformLocation);
+    GL_LOAD_PROC(Uniform1i);
+    GL_LOAD_PROC(Uniform1f);
     GL_LOAD_PROC(Uniform2f);
-    GL_LOAD_PROC(UniformMatrix4fv);
+    GL_LOAD_PROC(Uniform3f);
     GL_LOAD_PROC(Uniform4f);
+    GL_LOAD_PROC(UniformMatrix4fv);
 
     // Draw
     GL_LOAD_PROC(DrawArrays);
+
+    // FBO
+    GL_LOAD_PROC(GenFramebuffers);
+    GL_LOAD_PROC(BindFramebuffer);
+    GL_LOAD_PROC(FramebufferTexture2D);
+    GL_LOAD_PROC(CheckFramebufferStatus);
+    GL_LOAD_PROC(DeleteFramebuffers);
+    GL_LOAD_PROC(GenRenderbuffers);
+    GL_LOAD_PROC(BindRenderbuffer);
+    GL_LOAD_PROC(RenderbufferStorage);
+    GL_LOAD_PROC(FramebufferRenderbuffer);
+    GL_LOAD_PROC(DeleteRenderbuffers);
+    GL_LOAD_PROC(BlitFramebuffer);
 
     if (!CreateProgram || !UseProgram || !GenVertexArrays || !GenBuffers)
     {

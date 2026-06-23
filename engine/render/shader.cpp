@@ -1,6 +1,6 @@
 /**
  * @file engine/render/shader.cpp
- * @brief 着色器编译和链接实现
+ * @brief 着色器编译和链接实现 — Phase 6.1：uniform 方法全部实现
  */
 
 #include "engine/render/shader.h"
@@ -95,19 +95,48 @@ void Shader::unbind() const
 
 int Shader::uniformLocation(const std::string& name) const
 {
-    // glGetUniformLocation 是 OpenGL 2.0 函数，需要通过 loader
-    // 暂时使用 PFNGLGETUNIFORMLOCATIONPROC
-    // 为简化，这里返回 -1 表示未实现
-    (void)name;
-    return -1;
+    if (!m_programId) return -1;
+    return gl::GetUniformLocation(m_programId, name.c_str());
+}
+
+void Shader::setInt(const std::string& name, int value) const
+{
+    int loc = uniformLocation(name);
+    if (loc >= 0) gl::Uniform1i(loc, value);
+}
+
+void Shader::setFloat(const std::string& name, float value) const
+{
+    int loc = uniformLocation(name);
+    if (loc >= 0) gl::Uniform1f(loc, value);
+}
+
+void Shader::setVec2(const std::string& name, float x, float y) const
+{
+    int loc = uniformLocation(name);
+    if (loc >= 0) gl::Uniform2f(loc, x, y);
+}
+
+void Shader::setVec2(const std::string& name, const glm::vec2& v) const
+{
+    setVec2(name, v.x, v.y);
+}
+
+void Shader::setVec4(const std::string& name, float x, float y, float z, float w) const
+{
+    int loc = uniformLocation(name);
+    if (loc >= 0) gl::Uniform4f(loc, x, y, z, w);
+}
+
+void Shader::setVec4(const std::string& name, const glm::vec4& v) const
+{
+    setVec4(name, v.x, v.y, v.z, v.w);
 }
 
 void Shader::setMat4(const std::string& name, const float* data) const
 {
-    (void)name;
-    (void)data;
-    // 需要 glGetUniformLocation + glUniformMatrix4fv
-    // Phase 1 使用固定正交投影，暂不实现每帧更新 uniform
+    int loc = uniformLocation(name);
+    if (loc >= 0) gl::UniformMatrix4fv(loc, 1, GL_FALSE, data);
 }
 
 } // namespace engine::render

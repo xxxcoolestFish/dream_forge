@@ -96,6 +96,40 @@ set(ENGINE_NARRATIVE_SOURCES
     narrative/condition_evaluator.cpp
 )
 
+# --- Phase 6.3: FBO + post process ---
+set(ENGINE_RENDER_TARGET_SOURCES
+    render/render_target.cpp
+    render/post_process.cpp
+)
+
+# --- Phase 6.4: post effects ---
+set(ENGINE_EFFECTS_SOURCES
+    render/effects/post_effect.cpp
+    render/effects/effect_chain.cpp
+    render/effects/bloom_effect.cpp
+    render/effects/vignette_effect.cpp
+)
+
+# --- Phase 6.8: editor ---
+set(ENGINE_TOOLS_SOURCES
+    tools/editor.cpp
+)
+
+# --- Phase 6.6: transitions ---
+set(ENGINE_TRANSITIONS_SOURCES
+    render/transitions/transition_manager.cpp
+)
+
+# --- Phase 6.5: particles ---
+set(ENGINE_PARTICLES_SOURCES
+    render/particles/particle_system.cpp
+)
+
+# --- Phase 6.2: audio (音频引擎) ---
+set(ENGINE_AUDIO_SOURCES
+    audio/audio_engine.cpp
+)
+
 # -----------------------------------------------------------------------------
 # 库声明
 # -----------------------------------------------------------------------------
@@ -110,6 +144,12 @@ add_library(engine STATIC
     ${ENGINE_AI_SOURCES}
     ${ENGINE_SCRIPT_SOURCES}
     ${ENGINE_NARRATIVE_SOURCES}
+    ${ENGINE_RENDER_TARGET_SOURCES}
+    ${ENGINE_EFFECTS_SOURCES}
+    ${ENGINE_PARTICLES_SOURCES}
+    ${ENGINE_TRANSITIONS_SOURCES}
+    ${ENGINE_TOOLS_SOURCES}
+    ${ENGINE_AUDIO_SOURCES}
 )
 
 # 输出目录统一
@@ -130,6 +170,8 @@ target_link_libraries(engine PUBLIC
     libzmq
     cppzmq
     lua54
+    soloud
+    imgui
 )
 
 # 引擎需要 GLFW 头文件公开暴露（输入系统中引用 GLFW 类型）

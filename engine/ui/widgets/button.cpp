@@ -25,7 +25,7 @@ void Button::render(render::SpriteRenderer& renderer)
 
     Rect abs = absoluteRect();
     SpriteDesc desc;
-    desc.position = { abs.x, abs.y };
+    desc.position = glm::vec3(abs.x, abs.y, 0.0f);
     desc.size     = { abs.w, abs.h };
     Color c = m_hovered ? m_hoverColor : m_color;
     desc.tint = { c.r, c.g, c.b, c.a };

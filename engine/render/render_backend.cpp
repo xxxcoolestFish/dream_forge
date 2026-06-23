@@ -85,7 +85,7 @@ void RenderBackend::shutdown()
 
 void RenderBackend::beginFrame()
 {
-    gl::Clear(GL_COLOR_BUFFER_BIT);
+    gl::Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void RenderBackend::endFrame()

@@ -28,6 +28,7 @@ struct GLFWwindow;
 namespace engine::ecs { class World; }
 namespace engine::input { class InputSystem; }
 namespace engine::script { class ScriptEngine; }
+namespace engine::audio { class AudioEngine; }
 
 namespace engine {
 
@@ -78,6 +79,9 @@ public:
 
     // Phase 5: 获取脚本引擎
     class script::ScriptEngine* scriptEngine() const;
+
+    // Phase 6.2: 获取音频引擎
+    class audio::AudioEngine* audioEngine() const;
 
     // 请求退出
     void requestQuit();

@@ -7,6 +7,7 @@
 #include "engine/core/game_loop.h"
 #include "engine/render/render_backend.h"
 #include "engine/render/sprite.h"
+#include "engine/render/gl_loader.h"
 #include "engine/ui/ui_renderer.h"
 #include "engine/render/scene/camera.h"
 #include "engine/render/scene/scene_renderer.h"
@@ -20,6 +21,15 @@
 #include "engine/ecs/systems/interaction_system.h"
 #include "engine/input/input_system.h"
 #include "engine/script/script_engine.h"
+#include "engine/audio/audio_engine.h"
+#include "engine/render/render_target.h"
+#include "engine/render/post_process.h"
+#include "engine/render/effects/effect_chain.h"
+#include "engine/render/effects/bloom_effect.h"
+#include "engine/render/effects/vignette_effect.h"
+#include "engine/render/particles/particle_system.h"
+#include "engine/render/transitions/transition_manager.h"
+#include "engine/tools/editor.h"
 #include "engine/narrative/quest_manager.h"
 #include "engine/narrative/story_flags.h"
 #include "engine/narrative/condition_evaluator.h"
@@ -65,6 +75,18 @@ struct Engine::Impl
     std::unique_ptr<narrative::StoryFlags>   storyFlags;
     std::unique_ptr<narrative::ConditionEvaluator> conditionEval;
     std::unique_ptr<ecs::DialogueUISystem>   dialogueUI;
+
+    // Phase 6.3/6.4: FBO + 后处理特效链
+    std::unique_ptr<render::RenderTarget> mainRenderTarget;
+    std::unique_ptr<render::effects::EffectChain> effectChain;
+
+    // Phase 6.5/6.6/6.8: 粒子 + 转场 + 编辑器
+    std::unique_ptr<render::particles::ParticleSystem> particleSystem;
+    std::unique_ptr<render::transitions::TransitionManager> transitionManager;
+    std::unique_ptr<tools::Editor> editor;
+
+    // Phase 6.2: 音频
+    std::unique_ptr<audio::AudioEngine> audioEngine;
 };
 
 // =========================================================================
@@ -106,6 +128,10 @@ bool Engine::init(const EngineConfig& config)
     // if (!initResource())        return false;   // Step 4
 
     m_impl->initialized = true;
+    // 初始光标捕获（ESC 切换）
+    if (m_impl->inputSystem)
+        m_impl->inputSystem->setCursorVisible(false);
+
     spdlog::info("Engine initialization complete.");
     return true;
 }
@@ -221,6 +247,50 @@ bool Engine::initECS()
         return false;
     }
 
+    // 3b. FBO 渲染目标 + 后处理基座（在精灵渲染器之后）
+    m_impl->mainRenderTarget = std::make_unique<render::RenderTarget>();
+    if (!m_impl->mainRenderTarget->init(
+            static_cast<uint32_t>(m_impl->config.windowWidth),
+            static_cast<uint32_t>(m_impl->config.windowHeight)))
+    {
+        spdlog::warn("Main RenderTarget init failed — disabling post-processing.");
+        m_impl->mainRenderTarget.reset();
+    }
+    else
+    {
+        m_impl->effectChain = std::make_unique<render::effects::EffectChain>();
+        if (!m_impl->effectChain->init(
+                static_cast<uint32_t>(m_impl->config.windowWidth),
+                static_cast<uint32_t>(m_impl->config.windowHeight)))
+        {
+            spdlog::warn("EffectChain init failed.");
+            m_impl->effectChain.reset();
+            m_impl->mainRenderTarget.reset();
+        }
+        else
+        {
+            // 添加默认特效（默认关闭，由 Lua 或配置开启）
+            auto bloom = std::make_unique<render::effects::BloomEffect>();
+            if (bloom->init(
+                    static_cast<uint32_t>(m_impl->config.windowWidth),
+                    static_cast<uint32_t>(m_impl->config.windowHeight)))
+            {
+                bloom->setEnabled(false);  // 默认关闭
+                bloom->setIntensity(0.5f);
+                m_impl->effectChain->addEffect(std::move(bloom));
+            }
+
+            auto vignette = std::make_unique<render::effects::VignetteEffect>();
+            if (vignette->init(
+                    static_cast<uint32_t>(m_impl->config.windowWidth),
+                    static_cast<uint32_t>(m_impl->config.windowHeight)))
+            {
+                vignette->setEnabled(false);  // 默认关闭
+                m_impl->effectChain->addEffect(std::move(vignette));
+            }
+        }
+    }
+
     // 4. UI 渲染器 + 字体 + 数据绑定
     m_impl->uiRenderer = std::make_unique<ui::UIRenderer>();
     m_impl->uiRenderer->setEcsWorld(m_impl->ecsWorld.get());
@@ -291,6 +361,95 @@ bool Engine::initECS()
             });
     }
 
+    // 6.5: 粒子系统
+    m_impl->particleSystem = std::make_unique<render::particles::ParticleSystem>();
+    if (!m_impl->particleSystem->init(4096))
+    {
+        spdlog::warn("ParticleSystem init failed.");
+        m_impl->particleSystem.reset();
+    }
+
+    // 6.6: 转场管理器
+    m_impl->transitionManager = std::make_unique<render::transitions::TransitionManager>();
+    if (!m_impl->transitionManager->init())
+    {
+        spdlog::warn("TransitionManager init failed.");
+        m_impl->transitionManager.reset();
+    }
+
+    // 6.8: ImGui 编辑器
+    m_impl->editor = std::make_unique<tools::Editor>(
+        m_impl->ecsWorld.get(), m_impl->inputSystem.get());
+    if (!m_impl->editor->init(m_impl->window))
+    {
+        spdlog::warn("Editor init failed.");
+        m_impl->editor.reset();
+    }
+
+    // 7. 音频引擎
+    m_impl->audioEngine = std::make_unique<audio::AudioEngine>();
+    if (!m_impl->audioEngine->init())
+    {
+        spdlog::warn("AudioEngine initialization failed — audio disabled.");
+        m_impl->audioEngine.reset();
+    }
+    else
+    {
+        // 注册音频 Lua 绑定
+        sol::table eng = m_impl->scriptEngine->luaState()["engine"];
+        eng.set_function("playSound",
+            [ae = m_impl->audioEngine.get()](const std::string& path, sol::object vol) {
+                float v = vol.is<float>() ? vol.as<float>() : 1.0f;
+                return ae->playSound(path, v);
+            });
+        eng.set_function("playMusic",
+            [ae = m_impl->audioEngine.get()](const std::string& path, sol::object vol, sol::object loop) {
+                float v = vol.is<float>() ? vol.as<float>() : 0.7f;
+                bool  l = loop.is<bool>() ? loop.as<bool>() : true;
+                ae->playMusic(path, v, l);
+            });
+        eng.set_function("stopMusic",
+            [ae = m_impl->audioEngine.get()]() { ae->stopMusic(); });
+        eng.set_function("setMasterVolume",
+            [ae = m_impl->audioEngine.get()](float vol) { ae->setMasterVolume(vol); });
+    }
+
+    // 注册粒子 Lua 绑定
+    if (m_impl->particleSystem)
+    {
+        sol::table eng = m_impl->scriptEngine->luaState()["engine"];
+        eng.set_function("spawnParticles",
+            [ps = m_impl->particleSystem.get()](const std::string& preset, float x, float y) {
+                return ps->emitPreset(preset, {x, y});
+            });
+    }
+
+    // 注册后期特效 Lua 绑定
+    if (m_impl->effectChain)
+    {
+        sol::table eng = m_impl->scriptEngine->luaState()["engine"];
+
+        eng.set_function("setBloom",
+            [chain = m_impl->effectChain.get()](bool enabled, sol::object intensity) {
+                auto* bloom = dynamic_cast<render::effects::BloomEffect*>(chain->findEffect("Bloom"));
+                if (bloom)
+                {
+                    bloom->setEnabled(enabled);
+                    if (intensity.is<float>()) bloom->setIntensity(intensity.as<float>());
+                }
+            });
+
+        eng.set_function("setVignette",
+            [chain = m_impl->effectChain.get()](bool enabled, sol::object radius) {
+                auto* vignette = dynamic_cast<render::effects::VignetteEffect*>(chain->findEffect("Vignette"));
+                if (vignette)
+                {
+                    vignette->setEnabled(enabled);
+                    if (radius.is<float>()) vignette->setRadius(radius.as<float>());
+                }
+            });
+    }
+
     return true;
 }
 
@@ -357,25 +516,69 @@ void Engine::run()
             {
                 m_impl->inputSystem->poll();
 
-                // ESC 退出
+                // ESC 切换光标捕获
                 if (m_impl->inputSystem->isKeyPressed(GLFW_KEY_ESCAPE))
                 {
-                    m_impl->shouldQuit = true;
-                    break;
+                    bool cursorVis = m_impl->inputSystem->isCursorVisible();
+                    m_impl->inputSystem->setCursorVisible(!cursorVis);
+                    if (!cursorVis)
+                        spdlog::info("Cursor captured — FPS mode. ESC to release.");
+                    else
+                        spdlog::info("Cursor released. ESC to re-capture.");
                 }
 
-                // Phase 3: 方向键旋转相机（视差效果）
-                if (m_impl->activeScene)
+                // FPS 相机：鼠标旋转 + WASD 移动
+                auto& cam = m_impl->sceneCamera;
+                bool cursorCaptured = !m_impl->inputSystem->isCursorVisible();
+
+                if (cursorCaptured && m_impl->activeScene)
                 {
-                    auto& cam = m_impl->sceneCamera;
-                    float hRot = 0.0f, vRot = 0.0f;
-                    float rotSpeed = 30.0f; // 度/秒
-                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_LEFT))  hRot -= rotSpeed * static_cast<float>(dt);
-                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_RIGHT)) hRot += rotSpeed * static_cast<float>(dt);
-                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_UP))    vRot -= rotSpeed * 0.3f * static_cast<float>(dt);
-                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_DOWN))  vRot += rotSpeed * 0.3f * static_cast<float>(dt);
-                    cam.setRotation(cam.horizontalAngle() + hRot, cam.verticalAngle() + vRot);
+                    // 鼠标旋转视角
+                    float mdX = static_cast<float>(m_impl->inputSystem->mouseDeltaX());
+                    float mdY = static_cast<float>(m_impl->inputSystem->mouseDeltaY());
+                    if (mdX != 0.0f || mdY != 0.0f)
+                        cam.processMouse(mdX, mdY);
+
+                    // WASD 移动
+                    float fwd = 0.0f, rgt = 0.0f;
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_W)) fwd += 1.0f;
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_S)) fwd -= 1.0f;
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_A)) rgt -= 1.0f;
+                    if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_D)) rgt += 1.0f;
+
+                    if (fwd != 0.0f || rgt != 0.0f)
+                        cam.move(fwd, rgt, static_cast<float>(dt));
                 }
+
+                // 物理更新（重力 + 落地）
+                cam.updatePhysics(static_cast<float>(dt));
+
+                // 同步玩家实体到相机位置
+                {
+                    auto view = world.view<ecs::Player>();
+                    for (auto e : view)
+                    {
+                        auto& t = world.getComponent<ecs::Transform>(e);
+                        glm::vec3 cp = cam.position();
+                        t.position = cp;
+                    }
+                }
+
+                // 跳跃（空格）
+                if (m_impl->inputSystem->isKeyPressed(GLFW_KEY_SPACE))
+                    cam.jump();
+
+                // 方向键：自由飞行模式（始终可用，用于调试浏览）
+                if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_UP))    cam.move( 1.0f, 0.0f, static_cast<float>(dt), 300.0f);
+                if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_DOWN))  cam.move(-1.0f, 0.0f, static_cast<float>(dt), 300.0f);
+                if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_LEFT))  cam.move( 0.0f,-1.0f, static_cast<float>(dt), 300.0f);
+                if (m_impl->inputSystem->isKeyHeld(GLFW_KEY_RIGHT)) cam.move( 0.0f, 1.0f, static_cast<float>(dt), 300.0f);
+            }
+
+            // --- 编辑器更新（F1 切换等，最优先） ---
+            if (m_impl->editor)
+            {
+                m_impl->editor->update(static_cast<float>(dt));
             }
 
             // --- 脚本钩子（Lua onUpdate，在逻辑更新之前） ---
@@ -390,6 +593,24 @@ void Engine::run()
                 m_impl->questManager->update(dt);
             }
 
+            // --- 粒子系统更新 ---
+            if (m_impl->particleSystem)
+            {
+                m_impl->particleSystem->update(static_cast<float>(dt));
+            }
+
+            // --- 转场更新 ---
+            if (m_impl->transitionManager)
+            {
+                m_impl->transitionManager->update(static_cast<float>(dt));
+            }
+
+            // --- 音频引擎更新 ---
+            if (m_impl->audioEngine)
+            {
+                m_impl->audioEngine->update(static_cast<float>(dt));
+            }
+
             // --- 逻辑更新 ---
             world.updateSystems(dt);
 
@@ -400,31 +621,55 @@ void Engine::run()
             }
 
             // --- 渲染 ---
-            render.beginFrame();
+            const uint32_t sw = static_cast<uint32_t>(m_impl->config.windowWidth);
+            const uint32_t sh = static_cast<uint32_t>(m_impl->config.windowHeight);
+            const bool useFbo = (m_impl->mainRenderTarget != nullptr && m_impl->effectChain != nullptr);
 
-            // Phase 3: 先渲染场景层（背景 → 前景），再渲染 ECS 精灵（玩家、NPC）
+            // Phase 6.3: 场景 → FBO（如果可用）
+            if (useFbo)
+            {
+                m_impl->mainRenderTarget->bind();
+            }
+            render.beginFrame();  // 清除颜色+深度
+
+            // 3D 场景渲染（深度测试开）
+            render::gl::Enable(GL_DEPTH_TEST);
+
             if (m_impl->activeScene && m_impl->spriteRenderer)
             {
                 m_impl->sceneRenderer.render(
                     *m_impl->activeScene,
                     m_impl->sceneCamera,
-                    *m_impl->spriteRenderer,
-                    m_impl->config.windowWidth,
-                    m_impl->config.windowHeight);
-                m_impl->spriteRenderer->flush(
-                    m_impl->config.windowWidth,
-                    m_impl->config.windowHeight);
+                    *m_impl->spriteRenderer);
             }
 
             if (m_impl->spriteRenderer)
             {
-                m_impl->spriteRenderer->render(
+                m_impl->spriteRenderer->render3D(
                     world,
+                    m_impl->sceneCamera.viewProjection());
+            }
+
+            if (m_impl->particleSystem)
+            {
+                m_impl->particleSystem->render(
                     m_impl->config.windowWidth,
                     m_impl->config.windowHeight);
             }
 
-            // Phase 4: UI 渲染（最上层）+ 鼠标事件路由
+            render::gl::Disable(GL_DEPTH_TEST);
+
+            // Phase 6.3/6.4: 解绑 FBO → 后处理特效链
+            if (useFbo)
+            {
+                m_impl->mainRenderTarget->unbind();
+                // 清除默认帧缓冲
+                render::gl::Clear(GL_COLOR_BUFFER_BIT);
+                m_impl->effectChain->process(
+                    m_impl->mainRenderTarget->colorTextureId(), sw, sh);
+            }
+
+            // Phase 4: UI 渲染（最上层，始终在后处理之后）
             if (m_impl->uiRenderer)
             {
                 m_impl->uiRenderer->update(static_cast<float>(dt));
@@ -444,6 +689,19 @@ void Engine::run()
                         m_impl->uiRenderer->onMouseDown(mx, my);
                     }
                 }
+            }
+
+            // 编辑器叠加（UI 之上，转场之下）
+            if (m_impl->editor)
+            {
+                m_impl->editor->render();
+            }
+
+            // 转场叠加（最顶层）
+            if (m_impl->transitionManager)
+            {
+                m_impl->transitionManager->render(
+                    m_impl->config.windowWidth, m_impl->config.windowHeight);
             }
 
             render.endFrame();
@@ -486,6 +744,16 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
+    if (m_impl->audioEngine)
+    {
+        m_impl->audioEngine->shutdown();
+        m_impl->audioEngine.reset();
+    }
+    m_impl->effectChain.reset();
+    m_impl->mainRenderTarget.reset();
+    m_impl->editor.reset();
+    m_impl->transitionManager.reset();
+    m_impl->particleSystem.reset();
     m_impl->dialogueUI.reset();
     m_impl->conditionEval.reset();
     m_impl->storyFlags.reset();
@@ -548,13 +816,22 @@ bool Engine::loadScene(const std::string& path)
     }
 
     m_impl->activeScene = std::move(*sceneOpt);
+    // FPS 相机：初始站在场景前方，面朝场景（-Z 方向）
     m_impl->sceneCamera.setScreenSize(
         static_cast<float>(m_impl->config.windowWidth),
         static_cast<float>(m_impl->config.windowHeight));
-    m_impl->sceneCamera.setPosition(640.0f, 360.0f); // 默认看场景中心
+    m_impl->sceneCamera.setPosition(glm::vec3(640.0f, 360.0f, 150.0f));
+    m_impl->sceneCamera.setReferenceZ(150.0f);  // 层尺寸以此 Z 为基准，固定不变
 
-    spdlog::info("Engine: scene '{}' loaded ({} layers)",
+    spdlog::info("Engine: scene '{}' loaded ({} layers, 3D perspective)",
         m_impl->activeScene->name, m_impl->activeScene->layers.size());
+
+    // 场景环境音
+    if (m_impl->audioEngine && !m_impl->activeScene->ambianceAudio.empty())
+    {
+        m_impl->audioEngine->playAmbiance(m_impl->activeScene->ambianceAudio);
+    }
+
     return true;
 }
 
@@ -581,6 +858,11 @@ bool Engine::loadScript(const std::string& path)
 script::ScriptEngine* Engine::scriptEngine() const
 {
     return m_impl->scriptEngine.get();
+}
+
+audio::AudioEngine* Engine::audioEngine() const
+{
+    return m_impl->audioEngine.get();
 }
 
 void Engine::requestQuit()
