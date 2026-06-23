@@ -32,6 +32,10 @@ venv/
 # Dependencies (fetched by CMake — 但 third_party/ 中手动 vendor 的库需要提交)
 _build/
 
+# Claude
+CLAUDE.md
+.claude/
+
 # Generated assets
 *.scene.tmp
 *.png.tmp
