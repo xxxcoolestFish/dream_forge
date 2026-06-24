@@ -63,6 +63,9 @@ public:
     const StatDef* getDefinition(const std::string& key) const;
     const std::unordered_map<std::string, StatDef>& allDefinitions() const { return m_defs; }
 
+    /// 按分类筛选属性定义
+    std::vector<const StatDef*> getByCategory(const std::string& category) const;
+
     // ---- 派生属性 Lua 回调 ----
     void setLuaState(class sol::state* L) { m_lua = L; }
 
