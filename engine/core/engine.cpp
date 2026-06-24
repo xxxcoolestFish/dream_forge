@@ -492,10 +492,14 @@ bool Engine::initECS()
         // -- inventory 表 --
         sol::table invTbl = lua["inventory"].get_or_create<sol::table>();
         invTbl.set_function("configure",
-            [is = m_impl->inventorySystem](sol::object cfgObj) {
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()](sol::object cfgObj) {
                 if (!cfgObj.is<sol::table>()) { spdlog::error("inventory.configure: argument must be a table"); return; }
                 auto cfg = cfgObj.as<sol::table>();
-                is->configure(cfg.get_or("maxSlots", 20));
+                int slots = cfg.get_or("maxSlots", 20);
+                is->configure(slots);
+                // 同步更新所有现有 Inventory 组件的 maxSlots
+                for (auto e : w->view<ecs::Inventory>())
+                    w->getComponent<ecs::Inventory>(e).maxSlots = static_cast<uint32_t>(slots);
             });
 
         // -- equipment 表 --
@@ -540,7 +544,7 @@ bool Engine::initECS()
             (uint32_t userRaw, const std::string& slot) -> bool {
                 return is->unequipItem(*w, static_cast<ecs::Entity>(userRaw), slot);
             });
-        eng.set_function("getEquipped",
+        eng.set_function("findEquipped",
             [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
             (uint32_t userRaw, const std::string& slot) -> uint32_t {
                 return static_cast<uint32_t>(

@@ -54,12 +54,12 @@ engine.unequipItem(player, "weapon")
 
 卸下时反向扣除 statModifiers 加成。
 
-### engine.getEquipped(owner, slot) → entityId
+### engine.findEquipped(owner, slot) → entityId
 
 查询指定槽位当前装备的物品实体。
 
 ```lua
-local weapon = engine.getEquipped(player, "weapon")
+local weapon = engine.findEquipped(player, "weapon")
 if weapon ~= kNullEntity then
     local item = engine.getItem(weapon)
     print("当前武器: " .. item.name)
@@ -72,7 +72,7 @@ end
 
 ```lua
 if engine.hasEquipped(itemEntity) then
-    local eq = engine.getEquipped(itemEntity)
+    local eq = engine.findEquipped(itemEntity)
     print("装备者: " .. eq.equippedBy)
     print("槽位: " .. eq.slot)
 end
