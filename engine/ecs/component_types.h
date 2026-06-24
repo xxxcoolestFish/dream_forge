@@ -14,9 +14,12 @@
 
 #pragma once
 
+#include "engine/ecs/entity.h"
+
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -65,6 +68,7 @@ struct Stats
 {
     std::unordered_map<std::string, float> values;
     std::unordered_map<std::string, float> maxValues;
+    std::unordered_map<std::string, float> minValues;
 
     float get(const std::string& key, float defaultVal = 0.0f) const
     {
@@ -81,6 +85,36 @@ struct Stats
     {
         values[key] += delta;
     }
+
+    // 钳制写 — 自动限制在 [minValues[key], maxValues[key]]
+    void setClamped(const std::string& key, float value)
+    {
+        auto itMin = minValues.find(key);
+        auto itMax = maxValues.find(key);
+        if (itMin != minValues.end() && value < itMin->second) value = itMin->second;
+        if (itMax != maxValues.end() && value > itMax->second) value = itMax->second;
+        values[key] = value;
+    }
+
+    void modifyClamped(const std::string& key, float delta)
+    {
+        float cur = get(key, 0.0f);
+        setClamped(key, cur + delta);
+    }
+
+    bool isAtMax(const std::string& key) const
+    {
+        auto itMax = maxValues.find(key);
+        if (itMax == maxValues.end()) return false;
+        return get(key) >= itMax->second;
+    }
+
+    bool isDepleted(const std::string& key) const
+    {
+        auto itMin = minValues.find(key);
+        float minVal = (itMin != minValues.end()) ? itMin->second : 0.0f;
+        return get(key) <= minVal;
+    }
 };
 
 // =========================================================================
@@ -88,8 +122,9 @@ struct Stats
 // =========================================================================
 struct Inventory
 {
-    std::vector<Entity> items;    // 物品 Entity 列表
+    std::vector<Entity> items;
     uint32_t            maxSlots = 20;
+    int                 money    = 0;
 
     bool add(Entity item)
     {
@@ -106,10 +141,31 @@ struct Inventory
         return true;
     }
 
-    bool isFull() const
+    bool isFull() const { return items.size() >= maxSlots; }
+
+    bool addMoney(int amount)
     {
-        return items.size() >= maxSlots;
+        if (amount < 0) return false;
+        money += amount;
+        return true;
     }
+
+    bool spendMoney(int amount)
+    {
+        if (amount < 0 || money < amount) return false;
+        money -= amount;
+        return true;
+    }
+};
+
+// =========================================================================
+// UseEffect — 物品使用效果（挂载在 Item 上）
+// =========================================================================
+struct UseEffect
+{
+    std::string stat;        // 目标属性名
+    float       modify  = 0.0f;
+    bool        clampToMax = true;
 };
 
 // =========================================================================
@@ -120,8 +176,10 @@ struct Item
     std::string itemId;
     std::string name;
     std::string description;
-    std::string equipSlot;  // "" = 不可装备, "head", "body", "weapon"...
-    std::unordered_map<std::string, float> statModifiers; // 属性修正值
+    std::string equipSlot;  // "" = 不可装备且不可消耗, "head", "body", "weapon"...
+    std::unordered_map<std::string, float> statModifiers; // 装备时属性修正
+    bool        consumable = false;
+    std::vector<UseEffect> useEffects;   // 使用时的效果列表
 };
 
 // =========================================================================
@@ -181,6 +239,23 @@ struct AICharacterContext
 struct Player
 {
     int dummy = 0; // EnTT 对空 struct 的 get<> 返回 void，加占位字段
+};
+
+// =========================================================================
+// Equipped — 装备标记（物品 Entity 身上，标记已被装备）
+// =========================================================================
+struct Equipped
+{
+    Entity      equippedBy = kNullEntity;
+    std::string slot;
+};
+
+// =========================================================================
+// Dead — 死亡标记（HP 归零等致命状态）
+// =========================================================================
+struct Dead
+{
+    float deathTime = 0.0f;
 };
 
 } // namespace engine::ecs

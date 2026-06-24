@@ -34,6 +34,9 @@ using engine::ecs::QuestProgress;
 using engine::ecs::Relationship;
 using engine::ecs::AICharacterContext;
 using engine::ecs::Player;
+using engine::ecs::Equipped;
+using engine::ecs::Dead;
+using engine::ecs::UseEffect;
 using engine::ecs::kNullEntity;
 
 // =========================================================================
@@ -71,6 +74,8 @@ DEFINE_COMPONENT_ACCESSOR(getDialogueState,    DialogueState)
 DEFINE_COMPONENT_ACCESSOR(getQuestProgress,    QuestProgress)
 DEFINE_COMPONENT_ACCESSOR(getRelationship,     Relationship)
 DEFINE_COMPONENT_ACCESSOR(getAICharacterContext, AICharacterContext)
+DEFINE_COMPONENT_ACCESSOR(getEquipped, Equipped)
+DEFINE_COMPONENT_ACCESSOR(getDead, Dead)
 
 #undef DEFINE_COMPONENT_ACCESSOR
 
@@ -168,28 +173,46 @@ void registerAllBindings(sol::state& lua,
 
     // --- Stats ---
     lua.new_usertype<Stats>("Stats",
-        "values",    &Stats::values,
-        "maxValues", &Stats::maxValues,
-        "get",       &Stats::get,
-        "set",       &Stats::set,
-        "modify",    &Stats::modify
+        "values",       &Stats::values,
+        "maxValues",    &Stats::maxValues,
+        "minValues",    &Stats::minValues,
+        "get",          &Stats::get,
+        "set",          &Stats::set,
+        "modify",       &Stats::modify,
+        "setClamped",   &Stats::setClamped,
+        "modifyClamped",&Stats::modifyClamped,
+        "isAtMax",      &Stats::isAtMax,
+        "isDepleted",   &Stats::isDepleted
     );
 
     // --- Inventory ---
     lua.new_usertype<Inventory>("Inventory",
-        "items",    &Inventory::items,
-        "maxSlots", &Inventory::maxSlots,
-        "add",      &Inventory::add,
-        "remove",   &Inventory::remove,
-        "isFull",   &Inventory::isFull
+        "items",     &Inventory::items,
+        "maxSlots",  &Inventory::maxSlots,
+        "money",     &Inventory::money,
+        "add",       &Inventory::add,
+        "remove",    &Inventory::remove,
+        "isFull",    &Inventory::isFull,
+        "addMoney",  &Inventory::addMoney,
+        "spendMoney",&Inventory::spendMoney
+    );
+
+    // --- UseEffect ---
+    lua.new_usertype<UseEffect>("UseEffect",
+        "stat",       &UseEffect::stat,
+        "modify",     &UseEffect::modify,
+        "clampToMax", &UseEffect::clampToMax
     );
 
     // --- Item ---
     lua.new_usertype<Item>("Item",
-        "itemId",      &Item::itemId,
-        "name",        &Item::name,
-        "description", &Item::description,
-        "equipSlot",   &Item::equipSlot
+        "itemId",       &Item::itemId,
+        "name",         &Item::name,
+        "description",  &Item::description,
+        "equipSlot",    &Item::equipSlot,
+        "consumable",   &Item::consumable,
+        "useEffects",   &Item::useEffects,
+        "statModifiers",&Item::statModifiers
     );
 
     // --- DialogueSpeaker ---
@@ -225,6 +248,15 @@ void registerAllBindings(sol::state& lua,
         "currentGoal",      &AICharacterContext::currentGoal,
         "emotionalState",   &AICharacterContext::emotionalState,
         "knowledgeDomains", &AICharacterContext::knowledgeDomains
+    );
+
+    lua.new_usertype<Equipped>("Equipped",
+        "equippedBy", &Equipped::equippedBy,
+        "slot",       &Equipped::slot
+    );
+
+    lua.new_usertype<Dead>("Dead",
+        "deathTime", &Dead::deathTime
     );
 
     // =====================================================================
@@ -263,6 +295,8 @@ void registerAllBindings(sol::state& lua,
     DEF_HAS_COMP(hasQuestProgress,    QuestProgress);
     DEF_HAS_COMP(hasRelationship,     Relationship);
     DEF_HAS_COMP(hasAICharacterContext, AICharacterContext);
+    DEF_HAS_COMP(hasEquipped,           Equipped);
+    DEF_HAS_COMP(hasDead,               Dead);
     #undef DEF_HAS_COMP
 
     eng.set_function("isPlayer", [world](uint32_t rawEnt) {
@@ -281,6 +315,8 @@ void registerAllBindings(sol::state& lua,
     eng.set_function("getQuestProgress",    [world](uint32_t e) { return getQuestProgress(*world, e); });
     eng.set_function("getRelationship",     [world](uint32_t e) { return getRelationship(*world, e); });
     eng.set_function("getAICharacterContext", [world](uint32_t e) { return getAICharacterContext(*world, e); });
+    eng.set_function("getEquipped",  [world](uint32_t e) { return getEquipped(*world, e); });
+    eng.set_function("getDead",      [world](uint32_t e) { return getDead(*world, e); });
 
     // --- Component 添加 ---
     #define DEF_ADD_COMP(FuncName, CompType) \
@@ -300,6 +336,8 @@ void registerAllBindings(sol::state& lua,
     DEF_ADD_COMP(addRelationship,     Relationship);
     DEF_ADD_COMP(addAICharacterContext, AICharacterContext);
     DEF_ADD_COMP(addPlayer,           Player);
+    DEF_ADD_COMP(addEquipped,         Equipped);
+    DEF_ADD_COMP(addDead,             Dead);
     #undef DEF_ADD_COMP
 
     // --- Component 移除 ---
@@ -319,6 +357,8 @@ void registerAllBindings(sol::state& lua,
     DEF_REMOVE_COMP(removeQuestProgress,    QuestProgress);
     DEF_REMOVE_COMP(removeRelationship,     Relationship);
     DEF_REMOVE_COMP(removeAICharacterContext, AICharacterContext);
+    DEF_REMOVE_COMP(removeEquipped,           Equipped);
+    DEF_REMOVE_COMP(removeDead,               Dead);
     #undef DEF_REMOVE_COMP
 
     eng.set_function("removePlayer", [world](ecs::Entity e) {
@@ -441,7 +481,7 @@ void registerAllBindings(sol::state& lua,
     // =====================================================================
     lua["kNullEntity"] = kNullEntity;
 
-    spdlog::info("ScriptEngine: all C++ bindings registered ({} component types).", 12);
+    spdlog::info("ScriptEngine: all C++ bindings registered ({} component types).", 14);
 }
 
 } // namespace engine::script

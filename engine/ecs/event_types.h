@@ -68,4 +68,65 @@ struct DialogueEndData
     // 当前无需额外数据，占位供后续扩展
 };
 
+// =========================================================================
+// StatChangedEvent — 实体属性值变化
+// =========================================================================
+// 发布者：StatSystem
+// 订阅者：脚本层、UI、任务系统
+struct StatChangedData
+{
+    Entity      entity;
+    std::string statKey;
+    float       oldValue = 0.0f;
+    float       newValue = 0.0f;
+};
+
+// =========================================================================
+// StatDepletedEvent — 实体属性归零（HP=0 等）
+// =========================================================================
+// 发布者：StatSystem
+// 订阅者：脚本层（死亡处理等）
+struct StatDepletedData
+{
+    Entity      entity;
+    std::string statKey;
+};
+
+// =========================================================================
+// ItemUsedEvent — 物品被使用/消耗
+// =========================================================================
+// 发布者：InventorySystem
+// 订阅者：脚本层、任务系统（"使用药水"类目标）
+struct ItemUsedData
+{
+    Entity      userEntity;
+    Entity      itemEntity;
+    std::string itemId;
+};
+
+// =========================================================================
+// ItemEquippedEvent — 装备/卸下物品
+// =========================================================================
+// 发布者：InventorySystem
+// 订阅者：脚本层、UI
+struct ItemEquippedData
+{
+    Entity      entity;     // 装备者
+    Entity      itemEntity; // 物品实体
+    std::string slot;
+    bool        equipped = true; // true=穿上, false=脱下
+};
+
+// =========================================================================
+// MoneyChangedEvent — 金钱变动
+// =========================================================================
+// 发布者：InventorySystem
+// 订阅者：脚本层、UI
+struct MoneyChangedData
+{
+    Entity   entity;
+    int      oldAmount = 0;
+    int      newAmount = 0;
+};
+
 } // namespace engine::ecs
