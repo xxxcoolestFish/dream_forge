@@ -29,6 +29,8 @@ namespace engine::ecs { class World; }
 namespace engine::input { class InputSystem; }
 namespace engine::script { class ScriptEngine; }
 namespace engine::audio { class AudioEngine; }
+namespace engine::ecs { class StatSystem; }
+namespace engine::ecs { class InventorySystem; }
 
 namespace engine {
 
@@ -82,6 +84,10 @@ public:
 
     // Phase 6.2: 获取音频引擎
     class audio::AudioEngine* audioEngine() const;
+
+    // Phase 8: 属性系统 + 物品系统
+    class ecs::StatSystem* statSystem() const;
+    class ecs::InventorySystem* inventorySystem() const;
 
     // 请求退出
     void requestQuit();

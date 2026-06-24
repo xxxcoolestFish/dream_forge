@@ -24,6 +24,7 @@ set(ENGINE_CORE_SOURCES
     core/engine.cpp
     core/game_loop.cpp
     core/event_bus.cpp
+    core/save_manager.cpp
 )
 
 # --- Phase 1: ecs ---
@@ -34,6 +35,8 @@ set(ENGINE_ECS_SOURCES
     ecs/systems/interaction_system.cpp
     ecs/systems/dialogue_system.cpp
     ecs/systems/dialogue_ui_system.cpp
+    ecs/systems/stat_system.cpp
+    ecs/systems/inventory_system.cpp
 )
 
 # --- Phase 1: render ---

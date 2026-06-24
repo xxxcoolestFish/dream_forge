@@ -70,6 +70,37 @@ int main(int argc, char* argv[])
     pStats.values["xp"] = 0;
     pStats.values["level"] = 1;
 
+    // 玩家背包 + 金币
+    auto& inventory = world->addComponent<engine::ecs::Inventory>(player);
+    inventory.money = 50;
+    inventory.maxSlots = 20;
+
+    // 示例物品：生命药水
+    auto healthPotion = world->createEntity();
+    {
+        auto& item = world->addComponent<engine::ecs::Item>(healthPotion);
+        item.itemId    = "health_potion";
+        item.name      = "生命药水";
+        item.description = "恢复30点生命值";
+        item.consumable = true;
+        item.useEffects.push_back({"hp", 30.0f, true});
+    }
+    inventory.add(healthPotion);
+
+    // 示例物品：法力药水
+    auto manaPotion = world->createEntity();
+    {
+        auto& item = world->addComponent<engine::ecs::Item>(manaPotion);
+        item.itemId    = "mana_potion";
+        item.name      = "法力药水";
+        item.description = "恢复20点法力值";
+        item.consumable = true;
+        item.useEffects.push_back({"mp", 20.0f, true});
+    }
+    inventory.add(manaPotion);
+
+    spdlog::info("Player inventory: {} gold, {} items", inventory.money, inventory.items.size());
+
     // NPC：铁匠老陈
     auto npc = world->createEntity();
     world->addComponent<engine::ecs::Transform>(npc);

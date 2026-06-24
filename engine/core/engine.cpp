@@ -33,10 +33,14 @@
 #include "engine/narrative/quest_manager.h"
 #include "engine/narrative/story_flags.h"
 #include "engine/narrative/condition_evaluator.h"
+#include "engine/ecs/systems/stat_system.h"
+#include "engine/ecs/systems/inventory_system.h"
+#include "engine/core/save_manager.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 #include <typeinfo>
 
 namespace engine {
@@ -87,6 +91,11 @@ struct Engine::Impl
 
     // Phase 6.2: 音频
     std::unique_ptr<audio::AudioEngine> audioEngine;
+
+    // Phase 8: 属性系统 + 物品系统（World 托管，此处仅裸指针）
+    ecs::StatSystem*      statSystem      = nullptr;
+    ecs::InventorySystem* inventorySystem = nullptr;
+    std::unique_ptr<SaveManager> saveManager;
 };
 
 // =========================================================================
@@ -237,7 +246,17 @@ bool Engine::initECS()
     ecs::DialogueSystem* dialogueSysPtr = dialogueSys.get();
     m_impl->ecsWorld->registerSystem(std::move(dialogueSys));
 
-    spdlog::info("  ECS World initialized with {} system(s).", 3);
+    auto statSys = std::make_unique<ecs::StatSystem>(*m_impl->eventBus);
+    m_impl->statSystem = statSys.get();
+    m_impl->ecsWorld->registerSystem(std::move(statSys));
+
+    auto invSys = std::make_unique<ecs::InventorySystem>(*m_impl->eventBus);
+    m_impl->inventorySystem = invSys.get();
+    m_impl->ecsWorld->registerSystem(std::move(invSys));
+
+    m_impl->saveManager = std::make_unique<SaveManager>();
+
+    spdlog::info("  ECS World initialized with {} system(s).", 5);
 
     // 3. 精灵渲染器
     m_impl->spriteRenderer = std::make_unique<render::SpriteRenderer>();
@@ -338,13 +357,237 @@ bool Engine::initECS()
 
     // 6. 脚本引擎
     m_impl->scriptEngine = std::make_unique<script::ScriptEngine>();
+
+    // StatSystem 接入 Lua（用于派生属性 compute 回调）
+    m_impl->statSystem->setLuaState(&m_impl->scriptEngine->luaState());
+
+    // 注册 stat / item / inventory / equipment Lua 表（必须在 init() 之前，
+    // 因为 init.lua 会 dofile(main.lua)，main.lua 需要这些表已存在）
+    {
+        sol::state& lua = m_impl->scriptEngine->luaState();
+
+        // -- stat 表 --
+        sol::table statTbl = lua["stat"].get_or_create<sol::table>();
+        statTbl.set_function("define", [ss = m_impl->statSystem, w = m_impl->ecsWorld.get(), se = m_impl->scriptEngine.get()]
+            (const std::string& key, sol::object cfgObj) {
+                sol::state& lua = se->luaState();
+                if (!cfgObj.is<sol::table>()) {
+                    spdlog::error("stat.define('{}'): argument #2 must be a table", key);
+                    return;
+                }
+                sol::table cfg = cfgObj.as<sol::table>();
+                ecs::StatDef def;
+                def.key         = key;
+                def.displayName = cfg.get_or("displayName", key);
+                def.defaultValue = cfg.get_or("default", 0.0f);
+                def.maxValue    = cfg.get_or("max", 0.0f);
+                def.minValue    = cfg.get_or("min", 0.0f);
+                def.regenRate   = cfg.get_or("regen", 0.0f);
+                def.regenCooldown = cfg.get_or("regenCooldown", 0.0f);
+                def.onDepleted  = cfg.get_or("onDepleted", std::string{});
+                def.category    = cfg.get_or("category", std::string{});
+                def.derived     = cfg.get_or("derived", false);
+
+                if (def.derived)
+                {
+                    // 记录依赖
+                    sol::object deps = cfg["dependsOn"];
+                    if (deps.is<sol::table>())
+                    {
+                        sol::table depTbl = deps.as<sol::table>();
+                        for (auto& kv : depTbl)
+                        {
+                            sol::object val = kv.second;
+                            if (val.is<std::string>())
+                                def.dependsOn.push_back(val.as<std::string>());
+                        }
+                    }
+                }
+
+                ss->registerDefinition(def);
+                // 对已有实体应用定义
+                for (auto e : w->view<ecs::Stats>())
+                    ss->applyDefinitions(*w, e);
+            });
+
+        statTbl.set_function("setCompute",
+            [se = m_impl->scriptEngine.get()](const std::string& key, sol::function fn) {
+                sol::state& l = se->luaState();
+                sol::table registry = l["_DERIVED_COMPUTE"].get_or_create<sol::table>();
+                l["_DERIVED_COMPUTE"] = registry;
+                registry[key] = fn;
+            });
+
+        statTbl.set_function("getDefinition",
+            [ss = m_impl->statSystem](const std::string& key) -> sol::object {
+                auto* d = ss->getDefinition(key);
+                if (!d) return sol::nil;
+                sol::table t;
+                t["key"] = d->key;
+                t["displayName"] = d->displayName;
+                t["default"] = d->defaultValue;
+                t["max"] = d->maxValue;
+                t["min"] = d->minValue;
+                t["regen"] = d->regenRate;
+                t["category"] = d->category;
+                return t;
+            });
+
+        // -- item 表 --
+        sol::table itemTbl = lua["item"].get_or_create<sol::table>();
+        itemTbl.set_function("define",
+            [is = m_impl->inventorySystem](const std::string& key, sol::object cfgObj) {
+                if (!cfgObj.is<sol::table>()) { spdlog::error("item.define('{}'): argument #2 must be a table", key); return; }
+                sol::table cfg = cfgObj.as<sol::table>();
+                ecs::ItemDef def;
+                def.key         = key;
+                def.name        = cfg.get_or("name", key);
+                def.description = cfg.get_or("description", std::string{});
+                def.equipSlot   = cfg.get_or("equipSlot", std::string{});
+                def.consumable  = cfg.get_or("consumable", false);
+
+                sol::object ue = cfg["useEffects"];
+                if (ue.is<sol::table>())
+                {
+                    for (auto& kv : ue.as<sol::table>())
+                    {
+                        sol::table effect = kv.second.as<sol::table>();
+                        def.useEffects.push_back({
+                            effect.get_or("stat", std::string{}),
+                            effect.get_or("modify", 0.0f),
+                            effect.get_or("clampToMax", true)
+                        });
+                    }
+                }
+
+                sol::object sm = cfg["statModifiers"];
+                if (sm.is<sol::table>())
+                {
+                    for (auto& kv : sm.as<sol::table>())
+                        def.statModifiers[kv.first.as<std::string>()] = kv.second.as<float>();
+                }
+
+                is->registerItemDef(def);
+            });
+
+        itemTbl.set_function("create",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (const std::string& key) -> uint32_t {
+                return static_cast<uint32_t>(is->createItem(*w, key));
+            });
+
+        itemTbl.set_function("getDefinition",
+            [is = m_impl->inventorySystem](const std::string& key) -> sol::object {
+                auto* d = is->getItemDef(key);
+                if (!d) return sol::nil;
+                sol::table t;
+                t["key"] = d->key;
+                t["name"] = d->name;
+                t["description"] = d->description;
+                t["equipSlot"] = d->equipSlot;
+                t["consumable"] = d->consumable;
+                return t;
+            });
+
+        // -- inventory 表 --
+        sol::table invTbl = lua["inventory"].get_or_create<sol::table>();
+        invTbl.set_function("configure",
+            [is = m_impl->inventorySystem](sol::object cfgObj) {
+                if (!cfgObj.is<sol::table>()) { spdlog::error("inventory.configure: argument must be a table"); return; }
+                auto cfg = cfgObj.as<sol::table>();
+                is->configure(cfg.get_or("maxSlots", 20));
+            });
+
+        // -- equipment 表 --
+        sol::table equipTbl = lua["equipment"].get_or_create<sol::table>();
+        equipTbl.set_function("defineSlot",
+            [is = m_impl->inventorySystem](const std::string& key, sol::object cfgObj) {
+                if (!cfgObj.is<sol::table>()) { spdlog::error("equipment.defineSlot('{}'): argument #2 must be a table", key); return; }
+                auto cfg = cfgObj.as<sol::table>();
+                is->defineSlot(key,
+                    cfg.get_or("label", key),
+                    cfg.get_or("maxCount", 1));
+            });
+        equipTbl.set_function("getSlots",
+            [is = m_impl->inventorySystem]() {
+                sol::table t;
+                for (auto& [k, v] : is->allSlots())
+                {
+                    sol::table slot;
+                    slot["label"] = v.label;
+                    slot["maxCount"] = v.maxCount;
+                    t[k] = slot;
+                }
+                return t;
+            });
+
+        // -- engine 表追加（物品操作） --
+        sol::table eng = lua["engine"].get_or_create<sol::table>();
+        eng.set_function("useItem",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t userRaw, uint32_t itemRaw) -> bool {
+                return is->useItem(*w, static_cast<ecs::Entity>(userRaw),
+                                     static_cast<ecs::Entity>(itemRaw));
+            });
+        eng.set_function("equipItem",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t userRaw, uint32_t itemRaw) -> bool {
+                return is->equipItem(*w, static_cast<ecs::Entity>(userRaw),
+                                       static_cast<ecs::Entity>(itemRaw));
+            });
+        eng.set_function("unequipItem",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t userRaw, const std::string& slot) -> bool {
+                return is->unequipItem(*w, static_cast<ecs::Entity>(userRaw), slot);
+            });
+        eng.set_function("getEquipped",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t userRaw, const std::string& slot) -> uint32_t {
+                return static_cast<uint32_t>(
+                    is->findEquippedInSlot(*w, static_cast<ecs::Entity>(userRaw), slot));
+            });
+        eng.set_function("getMoney",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t entRaw) -> int {
+                return is->getMoney(*w, static_cast<ecs::Entity>(entRaw));
+            });
+        eng.set_function("addMoney",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t entRaw, int amount) -> bool {
+                return is->addMoney(*w, static_cast<ecs::Entity>(entRaw), amount);
+            });
+        eng.set_function("spendMoney",
+            [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
+            (uint32_t entRaw, int amount) -> bool {
+                return is->spendMoney(*w, static_cast<ecs::Entity>(entRaw), amount);
+            });
+
+        // -- narrative 表追加（存档） --
+        sol::table narr = lua["narrative"].get_or_create<sol::table>();
+        narr.set_function("save",
+            [sm = m_impl->saveManager.get(), w = m_impl->ecsWorld.get(),
+             sf = m_impl->storyFlags.get()](const std::string& path) -> bool {
+                return sm->save(path, *w, sf->toJson());
+            });
+        narr.set_function("load",
+            [sm = m_impl->saveManager.get(), w = m_impl->ecsWorld.get(),
+             sf = m_impl->storyFlags.get()](const std::string& path) -> bool {
+                nlohmann::json flagsJson;
+                if (!sm->load(path, *w, flagsJson))
+                    return false;
+                sf->fromJson(flagsJson);
+                return true;
+            });
+    }
+
+    // 现在 stat/item/inventory/equipment 表已就绪，初始化 Lua 引擎（加载 init.lua → main.lua）
     m_impl->scriptEngine->init(
         m_impl->ecsWorld.get(),
         m_impl->eventBus.get(),
         m_impl->inputSystem.get(),
         m_impl->questManager.get());
 
-    // 注册剧情标记绑定（StoryFlags 在 init 之后才创建，手动注入）
+    // 注册剧情标记绑定（scriptEngine->init 之后注入，覆盖/追加 narrative 表函数）
     {
         sol::table narr = m_impl->scriptEngine->luaState()["narrative"];
         narr.set_function("setFlag",
@@ -744,6 +987,7 @@ void Engine::shutdown()
     spdlog::info("Engine shutting down...");
 
     // 逆序销毁子系统
+    m_impl->saveManager.reset();
     if (m_impl->audioEngine)
     {
         m_impl->audioEngine->shutdown();
@@ -863,6 +1107,16 @@ script::ScriptEngine* Engine::scriptEngine() const
 audio::AudioEngine* Engine::audioEngine() const
 {
     return m_impl->audioEngine.get();
+}
+
+ecs::StatSystem* Engine::statSystem() const
+{
+    return m_impl->statSystem;
+}
+
+ecs::InventorySystem* Engine::inventorySystem() const
+{
+    return m_impl->inventorySystem;
 }
 
 void Engine::requestQuit()
