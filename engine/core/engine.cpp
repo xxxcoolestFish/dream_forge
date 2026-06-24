@@ -418,6 +418,49 @@ bool Engine::initECS()
                 registry[key] = fn;
             });
 
+        statTbl.set_function("getAllDefinitions",
+            [ss = m_impl->statSystem](sol::this_state L) {
+                sol::state_view lua(L);
+                sol::table t = lua.create_table();
+                int count = 0;
+                for (auto& [key, def] : ss->allDefinitions())
+                {
+                    sol::table d = lua.create_table();
+                    d["key"]         = def.key;
+                    d["displayName"] = def.displayName;
+                    d["default"]     = def.defaultValue;
+                    d["max"]         = def.maxValue;
+                    d["min"]         = def.minValue;
+                    d["regen"]       = def.regenRate;
+                    d["category"]    = def.category;
+                    d["derived"]     = def.derived;
+                    t[key] = d;
+                    ++count;
+                }
+                spdlog::info("getAllDefinitions: returned {} entries", count);
+                return t;
+            });
+
+        statTbl.set_function("getByCategory",
+            [ss = m_impl->statSystem](const std::string& cat, sol::this_state L) {
+                sol::state_view lua(L);
+                sol::table t = lua.create_table();
+                auto defs = ss->getByCategory(cat);
+                for (auto* def : defs)
+                {
+                    sol::table d = lua.create_table();
+                    d["key"]         = def->key;
+                    d["displayName"] = def->displayName;
+                    d["default"]     = def->defaultValue;
+                    d["max"]         = def->maxValue;
+                    d["min"]         = def->minValue;
+                    d["regen"]       = def->regenRate;
+                    d["category"]    = def->category;
+                    t[def->key] = d;
+                }
+                return t;
+            });
+
         statTbl.set_function("getDefinition",
             [ss = m_impl->statSystem](const std::string& key) -> sol::object {
                 auto* d = ss->getDefinition(key);
@@ -560,6 +603,61 @@ bool Engine::initECS()
             (uint32_t entRaw, int amount) -> bool {
                 return is->addMoney(*w, static_cast<ecs::Entity>(entRaw), amount);
             });
+        eng.set_function("resolveBinding",
+            [w = m_impl->ecsWorld.get()]
+            (uint32_t rawEnt, const std::string& path) -> std::string {
+                auto e = static_cast<ecs::Entity>(rawEnt);
+                if (!w->isValid(e)) return "";
+
+                // path 格式: "stat.hp" | "stat_max.hp" | "money" | "inventory_count" | "equipped.weapon"
+                auto dot = path.find('.');
+                std::string prefix = (dot != std::string::npos) ? path.substr(0, dot) : path;
+                std::string key    = (dot != std::string::npos) ? path.substr(dot + 1) : "";
+
+                if (prefix == "stat" && !key.empty())
+                {
+                    if (w->hasComponent<ecs::Stats>(e))
+                        return std::to_string(static_cast<int>(w->getComponent<ecs::Stats>(e).get(key, 0.0f)));
+                }
+                else if (prefix == "stat_max" && !key.empty())
+                {
+                    if (w->hasComponent<ecs::Stats>(e))
+                        return std::to_string(static_cast<int>(w->getComponent<ecs::Stats>(e).maxValues[key]));
+                }
+                else if (path == "money")
+                {
+                    if (w->hasComponent<ecs::Inventory>(e))
+                        return std::to_string(w->getComponent<ecs::Inventory>(e).money);
+                }
+                else if (path == "inventory_count")
+                {
+                    if (w->hasComponent<ecs::Inventory>(e))
+                        return std::to_string(w->getComponent<ecs::Inventory>(e).items.size());
+                }
+                else if (prefix == "equipped" && !key.empty())
+                {
+                    // 查装备槽: "equipped.weapon" → 物品名
+                    for (auto ie : w->view<ecs::Equipped>())
+                    {
+                        auto& eq = w->getComponent<ecs::Equipped>(ie);
+                        if (eq.equippedBy == e && eq.slot == key)
+                        {
+                            if (w->hasComponent<ecs::Item>(ie))
+                                return w->getComponent<ecs::Item>(ie).name;
+                            return "(equipped)";
+                        }
+                    }
+                    return "-";
+                }
+                else
+                {
+                    // 回退: 当作 stat key 直接查
+                    if (w->hasComponent<ecs::Stats>(e))
+                        return std::to_string(static_cast<int>(w->getComponent<ecs::Stats>(e).get(path, 0.0f)));
+                }
+                return "0";
+            });
+
         eng.set_function("spendMoney",
             [is = m_impl->inventorySystem, w = m_impl->ecsWorld.get()]
             (uint32_t entRaw, int amount) -> bool {

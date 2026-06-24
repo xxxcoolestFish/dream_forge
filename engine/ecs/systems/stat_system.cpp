@@ -61,6 +61,15 @@ const StatDef* StatSystem::getDefinition(const std::string& key) const
     return (it != m_defs.end()) ? &it->second : nullptr;
 }
 
+std::vector<const StatDef*> StatSystem::getByCategory(const std::string& category) const
+{
+    std::vector<const StatDef*> result;
+    for (const auto& [key, def] : m_defs)
+        if (def.category == category)
+            result.push_back(&def);
+    return result;
+}
+
 void StatSystem::modifyStat(World& world, Entity entity,
                             const std::string& key, float delta)
 {
